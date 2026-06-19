@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360"
+     font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif"
+     role="img" aria-label="架构：target repo/dir → fetch → discover bundles → rule engine (shell/hooks/network) → score → text/json report">
+  <defs>
+    <marker id="ah-l" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#B9B9C2"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="880" height="360" fill="#F5F5F7"/>
+
+  <!-- title -->
+  <text x="40" y="40" font-size="15" font-weight="700" fill="#1D1D1F">skvet · single Go binary · no daemon · no network beyond the git fetch</text>
+
+  <!-- connectors -->
+  <g stroke="#C9C9D0" stroke-width="1.5" fill="none">
+    <line x1="186" y1="100" x2="232" y2="100" marker-end="url(#ah-l)"/>
+    <line x1="378" y1="100" x2="424" y2="100" marker-end="url(#ah-l)"/>
+    <!-- discover down into rule engine -->
+    <line x1="500" y1="132" x2="500" y2="176" marker-end="url(#ah-l)"/>
+    <!-- rule engine to score -->
+    <line x1="354" y1="252" x2="300" y2="252" marker-end="url(#ah-l)"/>
+    <!-- score to report -->
+    <line x1="180" y1="252" x2="134" y2="252" marker-end="url(#ah-l)"/>
+    <!-- report fan-out -->
+    <line x1="74" y1="284" x2="74" y2="306" marker-end="url(#ah-l)"/>
+  </g>
+
+  <!-- INPUT: target -->
+  <g>
+    <rect x="40" y="72" width="146" height="56" rx="14" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.5"/>
+    <text x="113" y="98" text-anchor="middle" font-size="13" font-weight="600" fill="#0A4F9E">scan target</text>
+    <text x="113" y="116" text-anchor="middle" font-size="11" font-weight="500" fill="#6E6E73">./dir · github.com/o/r</text>
+  </g>
+
+  <!-- fetch -->
+  <g>
+    <rect x="232" y="72" width="146" height="56" rx="14" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.5"/>
+    <text x="305" y="98" text-anchor="middle" font-size="13" font-weight="600" fill="#0A4F9E">fetch</text>
+    <text x="305" y="116" text-anchor="middle" font-size="11" font-weight="500" fill="#6E6E73">local · git clone --depth 1</text>
+  </g>
+
+  <!-- discover -->
+  <g>
+    <rect x="424" y="72" width="152" height="56" rx="14" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.5"/>
+    <text x="500" y="98" text-anchor="middle" font-size="13" font-weight="600" fill="#0A4F9E">discover bundles</text>
+    <text x="500" y="116" text-anchor="middle" font-size="11" font-weight="500" fill="#6E6E73">SKILL.md · hooks.json · plugin</text>
+  </g>
+
+  <!-- rule engine container (purple) -->
+  <g>
+    <rect x="424" y="176" width="408" height="92" rx="16" fill="#5E5CE6" fill-opacity="0.08" stroke="#5E5CE6" stroke-width="1.5"/>
+    <text x="628" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#4B3FC4">rule engine · pure deterministic detectors</text>
+    <g font-size="12" font-weight="600">
+      <rect x="446" y="214" width="120" height="42" rx="11" fill="#5E5CE6" fill-opacity="0.12" stroke="#5E5CE6" stroke-width="1.3"/>
+      <text x="506" y="232" text-anchor="middle" fill="#4B3FC4">shell</text>
+      <text x="506" y="248" text-anchor="middle" font-size="10" font-weight="500" fill="#6E6E73">curl|sh · scripts</text>
+
+      <rect x="578" y="214" width="120" height="42" rx="11" fill="#5E5CE6" fill-opacity="0.12" stroke="#5E5CE6" stroke-width="1.3"/>
+      <text x="638" y="232" text-anchor="middle" fill="#4B3FC4">hooks</text>
+      <text x="638" y="248" text-anchor="middle" font-size="10" font-weight="500" fill="#6E6E73">hooks.json commands</text>
+
+      <rect x="710" y="214" width="100" height="42" rx="11" fill="#5E5CE6" fill-opacity="0.12" stroke="#5E5CE6" stroke-width="1.3"/>
+      <text x="760" y="232" text-anchor="middle" fill="#4B3FC4">network</text>
+      <text x="760" y="248" text-anchor="middle" font-size="10" font-weight="500" fill="#6E6E73">outbound calls</text>
+    </g>
+  </g>
+
+  <!-- score (green) -->
+  <g>
+    <rect x="180" y="224" width="174" height="56" rx="14" fill="#10A37F" fill-opacity="0.10" stroke="#10A37F" stroke-width="1.5"/>
+    <text x="267" y="250" text-anchor="middle" font-size="13" font-weight="600" fill="#0B6B53">score · 0–100</text>
+    <text x="267" y="268" text-anchor="middle" font-size="11" font-weight="500" fill="#6E6E73">stars-orthogonal · LOW/MED/HIGH</text>
+  </g>
+
+  <!-- report (green) -->
+  <g>
+    <rect x="14" y="224" width="120" height="56" rx="14" fill="#10A37F" fill-opacity="0.10" stroke="#10A37F" stroke-width="1.5"/>
+    <text x="74" y="250" text-anchor="middle" font-size="13" font-weight="600" fill="#0B6B53">report</text>
+    <text x="74" y="268" text-anchor="middle" font-size="11" font-weight="500" fill="#6E6E73">render</text>
+  </g>
+
+  <!-- outputs -->
+  <g font-size="11" font-weight="600">
+    <rect x="14" y="306" width="56" height="30" rx="10" fill="#10A37F" fill-opacity="0.12" stroke="#10A37F" stroke-width="1.3"/>
+    <text x="42" y="325" text-anchor="middle" fill="#0B6B53">text</text>
+    <rect x="78" y="306" width="56" height="30" rx="10" fill="#10A37F" fill-opacity="0.12" stroke="#10A37F" stroke-width="1.3"/>
+    <text x="106" y="325" text-anchor="middle" fill="#0B6B53">--json</text>
+    <text x="148" y="325" font-size="11" font-weight="500" fill="#6E6E73">exit 2 on HIGH</text>
+  </g>
+</svg>

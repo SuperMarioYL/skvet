@@ -1,0 +1,52 @@
+name: Demo GIF
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          check-latest: true
+
+      # vhs needs ffmpeg + ttyd. We install them manually rather than using
+      # charmbracelet/vhs-action, which hard-fails on the ffmpeg step.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install ttyd
+        run: |
+          sudo curl -sSL -o /usr/local/bin/ttyd \
+            https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+          sudo chmod +x /usr/local/bin/ttyd
+          ttyd --version
+
+      - name: Install vhs
+        run: go install github.com/charmbracelet/vhs@latest
+
+      - name: Render demo.gif
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          vhs docs/demo.tape
+
+      - name: Commit demo.gif
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f assets/demo.gif
+          git commit -m "ci: render demo gif" || echo "no change"
+          git push origin HEAD:main
