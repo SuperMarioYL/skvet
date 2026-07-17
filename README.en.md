@@ -56,6 +56,9 @@ skvet scan github.com/owner/awesome-skills
 
 # 3. skvet exits 2 on a HIGH verdict — use it as a pre-install gate
 skvet scan github.com/owner/awesome-skills || echo "review before installing"
+
+# 4. --fail-on tunes the gate threshold: fail on MEDIUM or above (stricter CI)
+skvet scan github.com/owner/awesome-skills --fail-on medium || echo "MEDIUM-or-above risk — hold off"
 ```
 
 ## <img src="https://api.iconify.design/tabler:terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Usage
@@ -63,8 +66,10 @@ skvet scan github.com/owner/awesome-skills || echo "review before installing"
 There is a single subcommand, `scan`, taking a local path or a `github.com/owner/repo` reference.
 
 ```bash
-skvet scan <path | github.com/owner/repo> [--json]
+skvet scan <path | github.com/owner/repo> [--json] [--fail-on none|low|medium|high]
 ```
+
+`--fail-on` configures the CI / pre-install gate exit-code threshold: skvet exits `2` when the overall level is at or above this value (default `high`, matching v0.1; `none` never exits non-zero).
 
 **Example 1 · scan a malicious bundle that phones home**, get the full findings table:
 
@@ -112,6 +117,7 @@ Every finding carries `rule_id` / `severity` / `surface` / `evidence` (file, lin
 ## <img src="https://api.iconify.design/tabler:map-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Roadmap
 
 - [x] **v0.1** — local-directory scan + remote-repo shallow clone + shell/hook/network rule engine + stars-orthogonal score + `--json`
+- [x] **v0.2** — configurable `--fail-on` CI gate threshold; HIGH remote scans no longer leak the temp clone; empty dirs no longer fake a LOW bundle; >1 MiB scripts are partially scanned (closes an evasion)
 - [ ] More surfaces: `fs_write` (writes outside the skill dir), `secrets` (reads env/credentials), `obfuscation` (base64 / encoded payloads)
 - [ ] Wider runtime detection: Cursor / Codex CLI / Gemini CLI / Antigravity manifest shapes
 - [ ] GitHub Action wrapper to run skvet as a PR pre-install gate

@@ -56,6 +56,9 @@ skvet scan github.com/owner/awesome-skills
 
 # 3. 判定为 HIGH 时 skvet 以 exit 2 退出 —— 可直接当装前闸门
 skvet scan github.com/owner/awesome-skills || echo "建议先人工 review 再安装"
+
+# 4. --fail-on 可调闸门阈值：MEDIUM 及以上就拦（CI 里更严）
+skvet scan github.com/owner/awesome-skills --fail-on medium || echo "有 MEDIUM 以上风险，先别装"
 ```
 
 ## <img src="https://api.iconify.design/tabler:terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 用法
@@ -63,8 +66,10 @@ skvet scan github.com/owner/awesome-skills || echo "建议先人工 review 再�
 只有一个子命令 `scan`，参数是一个本地路径或一个 `github.com/owner/repo` 引用。
 
 ```bash
-skvet scan <path | github.com/owner/repo> [--json]
+skvet scan <path | github.com/owner/repo> [--json] [--fail-on none|low|medium|high]
 ```
+
+`--fail-on` 配置 CI / 装前闸门的退出码阈值：整体风险等级达到或超过该等级时 skvet 以 `exit 2` 退出（默认 `high`，与 v0.1 一致；`none` 永远退出 0）。
 
 **示例 1 · 扫一个会自动外联的恶意包**，得到完整 findings 表格：
 
@@ -112,6 +117,7 @@ skvet scan github.com/owner/awesome-skills --json | jq '.overall, .verdicts[].sc
 ## <img src="https://api.iconify.design/tabler:map-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 路线图
 
 - [x] **v0.1** — 本地目录扫描 + 远端仓库浅克隆 + shell/hook/network 规则引擎 + 与 star 无关的评分 + `--json`
+- [x] **v0.2** — `--fail-on` 可调 CI 闸门阈值；HIGH 远端扫描不再泄漏临时克隆；空目录不再伪造 LOW 包；>1 MiB 脚本改为部分扫描（防绕过）
 - [ ] 更多 Surface 检测：`fs_write`（写出 skill 目录之外）、`secrets`（读环境变量/凭据）、`obfuscation`（base64 / 编码 payload）
 - [ ] 更广的运行时识别：Cursor / Codex CLI / Gemini CLI / Antigravity 的清单形态
 - [ ] GitHub Action 封装，把 skvet 当 PR 装前闸门

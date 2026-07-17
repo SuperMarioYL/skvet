@@ -14,6 +14,7 @@
 package bundle
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -114,22 +115,30 @@ func Discover(root string) ([]SkillBundle, error) {
 func findBundleRoots(root string) ([]string, error) {
 	seen := map[string]bool{}
 	var found []string
+	sawScannable := false
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() {
+		if d.IsDir() {
+			base := d.Name()
+			// Skip VCS / dependency dirs entirely.
+			if base == ".git" || base == "node_modules" || base == "vendor" {
+				return filepath.SkipDir
+			}
+			if isBundleRoot(path) && !seen[path] {
+				seen[path] = true
+				found = append(found, path)
+			}
 			return nil
 		}
-		base := d.Name()
-		// Skip VCS / dependency dirs entirely.
-		if base == ".git" || base == "node_modules" || base == "vendor" {
-			return filepath.SkipDir
-		}
-		if isBundleRoot(path) && !seen[path] {
-			seen[path] = true
-			found = append(found, path)
+		// Track whether ANY scannable file lives under the tree, so the
+		// root-as-bundle fallback only fires when there is actually something
+		// to scan — an empty dir or a dir of non-skill files must NOT be
+		// reported as a fake "1 LOW pure-prompt" bundle.
+		if _, scan := classify(path); scan {
+			sawScannable = true
 		}
 		return nil
 	})
@@ -139,7 +148,9 @@ func findBundleRoots(root string) ([]string, error) {
 
 	// If nothing matched but the root has scripts or scannable files, treat the
 	// root itself as a single bundle so `scan ./somedir` always says something.
-	if len(found) == 0 {
+	// An empty / non-skill dir returns an empty list so the report honestly
+	// prints "0 bundles" instead of a false-clean LOW verdict.
+	if len(found) == 0 && sawScannable {
 		found = append(found, root)
 	}
 	sort.Strings(found)
@@ -250,8 +261,27 @@ func classify(path string) (rules.FileKind, bool) {
 
 func readCapped(path string) (string, bool) {
 	info, err := os.Stat(path)
-	if err != nil || info.Size() > maxFileBytes {
+	if err != nil {
 		return "", false
+	}
+	// A scannable file larger than the cap is PARTIALLY scanned, not silently
+	// dropped: a malicious skill could otherwise defeat skvet by bloating a
+	// script past 1 MiB (a huge minified/obfuscated install.sh) and getting a
+	// clean LOW verdict. We scan the first maxFileBytes so a payload in the
+	// prefix is still caught; patterns past the cap remain out of reach (full
+	// streaming is out of scope for v0.2).
+	if info.Size() > maxFileBytes {
+		f, err := os.Open(path)
+		if err != nil {
+			return "", false
+		}
+		defer f.Close()
+		buf := make([]byte, maxFileBytes)
+		n, _ := io.ReadFull(f, buf)
+		// io.ReadFull returns n == len(buf) when the file is larger; for the
+		// edge case of exactly-maxFileBytes-after-stat-race, n is still the
+		// readable prefix, which is strictly better than skipping.
+		return string(buf[:n]), true
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-17
+
+### Added
+- `--fail-on {none|low|medium|high}` flag on `scan` (default `high`) — makes the
+  CI / pre-install gate threshold configurable so a team can fail the build on
+  any MEDIUM-or-above finding (e.g. an outbound-network install hook) without
+  parsing the text/JSON output themselves. `none` never exits non-zero; default
+  `high` preserves v0.1 behavior. This is the CLI-native primitive the roadmap's
+  GitHub-Action wrapper builds on.
+
+### Fixed
+- Remote scans that flag a HIGH verdict no longer leak the shallow-clone temp
+  dir under `/tmp/skvet-clone-*`: `os.Exit(2)` skipped the deferred cleanup, so
+  every HIGH-risk `skvet scan github.com/...` left a full repo clone on disk.
+  Cleanup now runs explicitly before the exit.
+- An empty / non-skill directory is no longer reported as a fake "1 LOW
+  pure-prompt" bundle. The root-as-bundle fallback now only fires when ≥1
+  scannable file is actually present, so `skvet scan ./empty-dir` honestly
+  prints "discovered 0 skill bundle(s)" instead of a false-clean verdict.
+- A scannable file larger than the 1 MiB read cap is now **partially scanned**
+  (first 1 MiB) instead of silently dropped. A malicious skill could previously
+  evade detection by bloating a script past the cap and getting a clean LOW
+  verdict; a payload in the prefix is now still caught.
+
 ## [0.1.0] - 2026-06-19
 
 ### Added
@@ -29,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` flag for machine-readable output of the full result.
 - Non-zero exit code `2` on a HIGH verdict, so skvet works as a CI / pre-install gate.
 
-[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.1.0

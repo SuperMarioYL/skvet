@@ -5,6 +5,8 @@
 package score
 
 import (
+	"strings"
+
 	"github.com/SuperMarioYL/skvet/internal/rules"
 )
 
@@ -12,10 +14,40 @@ import (
 type Level string
 
 const (
+	// LevelNone is a sentinel used only by --fail-on none: it is never emitted
+	// as a verdict's level, and as a fail-threshold it means "never exit 2".
+	LevelNone Level = "NONE"
 	LevelLow    Level = "LOW"
 	LevelMedium Level = "MEDIUM"
 	LevelHigh   Level = "HIGH"
 )
+
+// ParseLevel maps the --fail-on flag's string value to a Level. "none"
+// resolves to the LevelNone sentinel; ok is false for anything else.
+func ParseLevel(s string) (Level, bool) {
+	switch strings.ToLower(s) {
+	case "":
+		return "", false
+	case "none":
+		return LevelNone, true
+	case "low":
+		return LevelLow, true
+	case "medium":
+		return LevelMedium, true
+	case "high":
+		return LevelHigh, true
+	default:
+		return "", false
+	}
+}
+
+// AtLeast reports whether this level is at or above min in severity. It is
+// used by the --fail-on gate: an overall level meets the threshold when its
+// rank is >= the threshold's rank. LevelNone has rank 0 so any real level is
+// "at least" none — callers gate --fail-on none separately.
+func (l Level) AtLeast(min Level) bool {
+	return levelRank(l) >= levelRank(min)
+}
 
 // Verdict is the aggregated risk for one bundle.
 type Verdict struct {
