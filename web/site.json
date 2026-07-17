@@ -6,52 +6,52 @@
   "lang": { "primary": "zh", "toggle": true },
   "accent": ["#E0492F"],
   "hero": {
-    "eyebrow": { "zh": "装前体检 · 与 star 无关 · 单二进制", "en": "Pre-install vet · Stars-orthogonal · Single binary" },
+    "eyebrow": { "zh": "装前体检 · 与 star 数无关", "en": "Pre-install vet · Stars-orthogonal" },
     "headline": {
-      "zh": "装前一步\n给 skill 包一个与 star 无关的风险分",
-      "en": "Risk-score a skill bundle\nbefore you install it"
+      "zh": "装一个 skill 之前\n先看清它会对你的机器做什么",
+      "en": "Before you install a skill\nsee what it'll do to your machine"
     },
     "sub": {
-      "zh": "单文件 Go 二进制静态扫 shell、hook、外联三类面，输出 LOW/MED/HIGH 判定与逐条 finding，HIGH 退出码 2 直接当装前闸门。",
-      "en": "A single Go binary statically scans the shell, hook, and outbound-network surfaces, prints a LOW/MED/HIGH verdict with per-rule findings, and exits 2 on HIGH to act as a pre-install gate."
+      "zh": "trending 上的 agentic skill 包，在你点安装的那一刻就能跑 shell、挂 hook、往外联网。star 数可以刷，它不告诉你这些。skvet 在装之前把包扫一遍，给一个与 star 无关的 LOW/MED/HIGH 判定——装不装，你自己拿主意。",
+      "en": "A trending agentic skill bundle can run shell, register hooks, and call out the moment you install it. Star count is gameable and tells you none of that. skvet scans the bundle before install and gives a stars-orthogonal LOW/MED/HIGH verdict — you make the call."
     },
     "command": "skvet scan github.com/owner/awesome-skills",
     "cta": { "zh": "查看 GitHub", "en": "View on GitHub" },
     "ctaGithub": { "zh": "源码", "en": "Source" },
-    "scroll": { "zh": "向下看三类检测", "en": "See the three detectors" }
+    "scroll": { "zh": "看看它能替你挡什么", "en": "See what it catches for you" }
   },
   "advantages": [
     {
-      "title": { "zh": "与 star 数无关的风险分", "en": "A risk score orthogonal to stars" },
+      "title": { "zh": "与 star 数无关的风险分", "en": "A risk score that ignores stars" },
       "body": {
-        "zh": "0-100 分聚合成 LOW/MED/HIGH，全程不读取 star 数；报告底部带一条 stars ≠ safe 提醒——41k star 的库照样能在安装那一刻 curl|sh。",
-        "en": "Findings aggregate into a 0-100 score and a LOW/MED/HIGH level without ever reading star count; the report carries a stars ≠ safe reminder — a 41k-star repo can still curl|sh on install."
+        "zh": "star 数可以刷、可以买，41k star 的库照样能在安装那一刻 curl|sh。skvet 的判定全程不读 star 数，只看包里到底会对你的机器做什么，报告底部还提醒一句 stars ≠ safe。",
+        "en": "Stars are gameable and buyable — a 41k-star repo can still curl|sh on install. skvet's verdict never reads star count; it looks only at what the bundle will do to your machine, and the report carries a stars ≠ safe reminder."
       },
-      "chips": ["› 0-100 分，LOW/MED/HIGH", "› 全程不读 star 数", "› 报告带 stars ≠ safe 提示"]
+      "chips": ["› LOW/MED/HIGH 判定", "› 全程不读 star 数", "› stars ≠ safe 提醒"]
     },
     {
-      "title": { "zh": "三个确定性检测器，无 LLM", "en": "Three deterministic detectors, no LLM" },
+      "title": { "zh": "装前就告诉你它会对机器做什么", "en": "Tells you what it'll do to your machine — before install" },
       "body": {
-        "zh": "shell、hook、network 三个纯函数检测器跑在已读入内存的文件上：shell 抓 curl|sh 与随包脚本，hook 抓 hooks.json 里的生命周期命令，network 抓外联调用。无 LLM、无联网、可逐条审计。",
-        "en": "Three pure-function detectors — shell, hook, network — run over files already read into memory: shell catches curl|sh and shipped scripts, hook catches lifecycle commands in hooks.json, network catches outbound calls. No LLM, no network, auditable per rule."
+        "zh": "随包附带的 shell 脚本、curl|sh 式远程执行、挂在生命周期事件上自动触发的 hook、对外网的调用——装之前就逐条列出来，每条都带文件、行号、代码片段，你能一条条自己质疑，而不是面对一个黑盒分数。",
+        "en": "Shipped shell scripts, curl|sh remote execution, auto-firing hooks on lifecycle events, outbound calls — listed one by one before you install, each with file, line, and snippet so you can challenge any rule instead of facing a black-box score."
       },
-      "chips": ["› shell: curl|sh 与脚本", "› hook: 生命周期命令", "› network: 外联调用"]
+      "chips": ["› 会跑的 shell 脚本", "› 自动触发的生命周期 hook", "› 对外联网的调用"]
     },
     {
-      "title": { "zh": "可调阈值的装前闸门 (v0.2)", "en": "A tunable pre-install gate (v0.2)" },
+      "title": { "zh": "在 CI 里直接拦下高风险安装", "en": "Block risky installs right in CI" },
       "body": {
-        "zh": "--fail-on {none|low|medium|high} 配置 CI 闸门阈值（默认 high，兼容 v0.1）；整体风险达到阈值时 skvet 退出码 2，直接塞进 CI 当装前闸门，不用自己解析输出。",
-        "en": "--fail-on {none|low|medium|high} configures the CI gate threshold (default high, v0.1-compatible); skvet exits 2 when overall risk meets the threshold, dropping into CI as a pre-install gate with no output parsing."
+        "zh": "整体风险达到你设的阈值，skvet 直接以非零退出码退出，塞进 CI 当装前闸门，不用自己解析输出。阈值可调——MEDIUM 及以上就拦，还是只拦 HIGH，你定。",
+        "en": "When overall risk hits your threshold, skvet exits non-zero and drops into CI as a pre-install gate — no output parsing. Tune the threshold yourself: block at MEDIUM, or only at HIGH."
       },
-      "chips": ["› --fail-on 可调阈值", "› HIGH 退出码 2", "› 默认 high 兼容 v0.1"]
+      "chips": ["› 阈值可自己调", "› CI 里直接拦下", "› 不用解析输出"]
     },
     {
-      "title": { "zh": "跨运行时，单二进制", "en": "Cross-runtime, single binary" },
+      "title": { "zh": "一个工具，管所有宿主的 skill 包", "en": "One tool for every host's skill bundles" },
       "body": {
-        "zh": "适用于 Claude Code、Cursor、Codex CLI、Gemini CLI、Antigravity 的 skill 包形态——一家一家的签名注册表盖不住 trending 面。单文件 Go 二进制，无守护进程，除 git clone 不碰网络。",
-        "en": "Applies to the skill-bundle shapes of Claude Code, Cursor, Codex CLI, Gemini CLI, and Antigravity — a per-vendor signed registry doesn't cover the trending surface. Single Go binary, no daemon, no network beyond git clone."
+        "zh": "Claude Code、Cursor、Codex CLI、Gemini CLI、Antigravity——每家宿主各自的签名注册表盖不住 trending 上冒出来的包。skvet 看的是 skill 包本身长什么样，所以这些宿主全管。本地跑，不上传你的代码，也不用注册账号。",
+        "en": "Claude Code, Cursor, Codex CLI, Gemini CLI, Antigravity — each host's signed registry can't cover what surfaces on trending. skvet looks at the bundle's shape, so it covers all of them. Runs locally, never uploads your code, needs no account."
       },
-      "chips": ["› 5 类宿主运行时", "› 单文件 Go 二进制", "› 除 git clone 不联网"]
+      "chips": ["› 五类宿主都管", "› 本地跑不上传", "› 不用注册账号"]
     }
   ],
   "scene": {
@@ -60,7 +60,7 @@
   },
   "cta": {
     "headline": { "zh": "装前一步，把决定权拿回来", "en": "Take the call back, before you install" },
-    "sub": { "zh": "免费、开源、单二进制。skvet 只做报告，装不装的判断在你。", "en": "Free, open-source, single binary. skvet reports — you decide." },
+    "sub": { "zh": "免费、开源。skvet 只做报告，装不装的判断在你。", "en": "Free, open-source. skvet reports — you decide." },
     "button": { "zh": "看 GitHub 仓库", "en": "View on GitHub" }
   },
   "footer": {
