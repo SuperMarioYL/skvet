@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "name": "skvet",
+  "github": "https://github.com/SuperMarioYL/skvet",
+  "host": "skvet.lei6393.com",
+  "lang": { "primary": "zh", "toggle": true },
+  "accent": ["#E0492F"],
+  "hero": {
+    "eyebrow": { "zh": "装前体检 · 与 star 无关 · 单二进制", "en": "Pre-install vet · Stars-orthogonal · Single binary" },
+    "headline": {
+      "zh": "装前一步\n给 skill 包一个与 star 无关的风险分",
+      "en": "Risk-score a skill bundle\nbefore you install it"
+    },
+    "sub": {
+      "zh": "单文件 Go 二进制静态扫 shell、hook、外联三类面，输出 LOW/MED/HIGH 判定与逐条 finding，HIGH 退出码 2 直接当装前闸门。",
+      "en": "A single Go binary statically scans the shell, hook, and outbound-network surfaces, prints a LOW/MED/HIGH verdict with per-rule findings, and exits 2 on HIGH to act as a pre-install gate."
+    },
+    "command": "skvet scan github.com/owner/awesome-skills",
+    "cta": { "zh": "查看 GitHub", "en": "View on GitHub" },
+    "ctaGithub": { "zh": "源码", "en": "Source" },
+    "scroll": { "zh": "向下看三类检测", "en": "See the three detectors" }
+  },
+  "advantages": [
+    {
+      "title": { "zh": "与 star 数无关的风险分", "en": "A risk score orthogonal to stars" },
+      "body": {
+        "zh": "0-100 分聚合成 LOW/MED/HIGH，全程不读取 star 数；报告底部带一条 stars ≠ safe 提醒——41k star 的库照样能在安装那一刻 curl|sh。",
+        "en": "Findings aggregate into a 0-100 score and a LOW/MED/HIGH level without ever reading star count; the report carries a stars ≠ safe reminder — a 41k-star repo can still curl|sh on install."
+      },
+      "chips": ["› 0-100 分，LOW/MED/HIGH", "› 全程不读 star 数", "› 报告带 stars ≠ safe 提示"]
+    },
+    {
+      "title": { "zh": "三个确定性检测器，无 LLM", "en": "Three deterministic detectors, no LLM" },
+      "body": {
+        "zh": "shell、hook、network 三个纯函数检测器跑在已读入内存的文件上：shell 抓 curl|sh 与随包脚本，hook 抓 hooks.json 里的生命周期命令，network 抓外联调用。无 LLM、无联网、可逐条审计。",
+        "en": "Three pure-function detectors — shell, hook, network — run over files already read into memory: shell catches curl|sh and shipped scripts, hook catches lifecycle commands in hooks.json, network catches outbound calls. No LLM, no network, auditable per rule."
+      },
+      "chips": ["› shell: curl|sh 与脚本", "› hook: 生命周期命令", "› network: 外联调用"]
+    },
+    {
+      "title": { "zh": "可调阈值的装前闸门 (v0.2)", "en": "A tunable pre-install gate (v0.2)" },
+      "body": {
+        "zh": "--fail-on {none|low|medium|high} 配置 CI 闸门阈值（默认 high，兼容 v0.1）；整体风险达到阈值时 skvet 退出码 2，直接塞进 CI 当装前闸门，不用自己解析输出。",
+        "en": "--fail-on {none|low|medium|high} configures the CI gate threshold (default high, v0.1-compatible); skvet exits 2 when overall risk meets the threshold, dropping into CI as a pre-install gate with no output parsing."
+      },
+      "chips": ["› --fail-on 可调阈值", "› HIGH 退出码 2", "› 默认 high 兼容 v0.1"]
+    },
+    {
+      "title": { "zh": "跨运行时，单二进制", "en": "Cross-runtime, single binary" },
+      "body": {
+        "zh": "适用于 Claude Code、Cursor、Codex CLI、Gemini CLI、Antigravity 的 skill 包形态——一家一家的签名注册表盖不住 trending 面。单文件 Go 二进制，无守护进程，除 git clone 不碰网络。",
+        "en": "Applies to the skill-bundle shapes of Claude Code, Cursor, Codex CLI, Gemini CLI, and Antigravity — a per-vendor signed registry doesn't cover the trending surface. Single Go binary, no daemon, no network beyond git clone."
+      },
+      "chips": ["› 5 类宿主运行时", "› 单文件 Go 二进制", "› 除 git clone 不联网"]
+    }
+  ],
+  "scene": {
+    "kind": "hub-nodes",
+    "nodes": ["Claude Code", "Cursor", "Codex CLI", "Gemini CLI", "Antigravity"]
+  },
+  "cta": {
+    "headline": { "zh": "装前一步，把决定权拿回来", "en": "Take the call back, before you install" },
+    "sub": { "zh": "免费、开源、单二进制。skvet 只做报告，装不装的判断在你。", "en": "Free, open-source, single binary. skvet reports — you decide." },
+    "button": { "zh": "看 GitHub 仓库", "en": "View on GitHub" }
+  },
+  "footer": {
+    "tag": { "zh": "MIT 开源 · 与 star 数无关的装前风险分", "en": "MIT open-source · a stars-orthogonal pre-install risk score" }
+  }
+}
