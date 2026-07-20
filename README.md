@@ -9,7 +9,7 @@
 <p><sub>skvet：装前一步给一个 agentic skill 包打一个<strong>与 star 数无关</strong>的安装风险分——告诉你它会对你的机器做什么（shell、hook、外联），你再决定装不装。</sub></p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-0071E3" alt="License: MIT"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0071E3" alt="License: Apache-2.0"></a>
   <a href="https://github.com/SuperMarioYL/skvet/releases"><img src="https://img.shields.io/github/v/release/SuperMarioYL/skvet?color=5E5CE6" alt="Latest release"></a>
   <a href="https://github.com/SuperMarioYL/skvet/actions/workflows/ci.yml"><img src="https://github.com/SuperMarioYL/skvet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white" alt="Go 1.24">
