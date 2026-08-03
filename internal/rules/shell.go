@@ -46,19 +46,74 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		}
 
 		// Inline pipe-to-shell / eval-download anywhere is high severity.
-		for i, line := range lines {
-			if pipeToShell.MatchString(line) || evalDownload.MatchString(line) {
+		// Match against logical (continuation-joined) lines so a `curl ... | sh`
+		// split across a backslash-continuation (`curl ... | \<newline> sh`) or a
+		// trailing-pipe line break (`curl ... |<newline>sh`) is still caught —
+		// the single-line regex would otherwise miss the wrapped shape and the
+		// bundle would score MEDIUM instead of a disqualifying HIGH.
+		for _, ll := range logicalLines(lines) {
+			if pipeToShell.MatchString(ll.text) || evalDownload.MatchString(ll.text) {
 				out = append(out, Finding{
 					RuleID:   "SK-SHELL-002",
 					Severity: SeverityHigh,
 					Surface:  SurfaceShell,
 					Reason:   "pipes downloaded content straight into a shell (curl|sh style remote-code execution)",
-					Evidence: Evidence{File: f.Path, Line: i + 1, Snippet: strings.TrimSpace(line)},
+					Evidence: Evidence{File: f.Path, Line: ll.line, Snippet: strings.TrimSpace(ll.text)},
 				})
 			}
 		}
 	}
 	return out
+}
+
+// logicalLine is one logical (continuation-joined) line and the 1-based number
+// of the physical line it starts on.
+type logicalLine struct {
+	text string
+	line int
+}
+
+// logicalLines joins shell line-continuations so a pipe-to-shell split across a
+// trailing backslash or a trailing pipe is matched as one logical line. Lines
+// with no continuation are returned 1:1 with the input.
+func logicalLines(lines []string) []logicalLine {
+	var out []logicalLine
+	for i := 0; i < len(lines); i++ {
+		start := i + 1
+		cur := lines[i]
+		for endsWithContinuation(cur) && i+1 < len(lines) {
+			i++
+			cur = joinContinuation(cur, lines[i])
+		}
+		out = append(out, logicalLine{text: cur, line: start})
+	}
+	return out
+}
+
+// endsWithContinuation reports whether a line signals that the next line is a
+// continuation: a trailing backslash (shell line continuation) or a trailing
+// bare pipe (the pipe target starts on the next line).
+func endsWithContinuation(line string) bool {
+	t := strings.TrimRight(line, " \t\r")
+	if len(t) == 0 {
+		return false
+	}
+	switch t[len(t)-1] {
+	case '\\', '|':
+		return true
+	}
+	return false
+}
+
+// joinContinuation merges a continuation head with its successor: strip a
+// trailing line-continuation backslash (if any), then join with a single space
+// so the regex sees `curl ... | sh` as one line.
+func joinContinuation(head, next string) string {
+	t := strings.TrimRight(head, " \t\r")
+	if strings.HasSuffix(t, "\\") {
+		t = strings.TrimSuffix(t, "\\")
+	}
+	return t + " " + strings.TrimLeft(next, " \t\r")
 }
 
 // shebangLine returns the 1-based line number of a shebang, or 1.

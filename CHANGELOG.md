@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-03
+
+### Fixed
+- A 0-bundle scan (an empty or non-skill directory) no longer prints a
+  false-clean `OVERALL RISK: LOW`. `score.Overall` now returns `NONE` when there
+  is nothing to score, and the report prints an honest "no skill bundle
+  discovered, nothing to assess" line. This is the aggregate counterpart to the
+  v0.2 fix that stopped a 0-bundle scan reporting a fake per-bundle LOW.
+- The network rule no longer flags a bare documented URL in a non-executable
+  data file (`package.json` repository URL, `config.yaml` endpoint, etc.) as an
+  outbound network call. `KindOther` files now only yield a `SK-NET-001` finding
+  when a real network command (`curl`/`wget`/...) or HTTP client is present — a
+  benign `package.json` previously scored MEDIUM on two documented URLs. The
+  finding reason is now kind-accurate and no longer calls a `.json`/`.yaml`
+  "executable".
+- `--fail-on` is now validated before any cloning. A typo such as
+  `--fail-on hig` previously triggered a full remote shallow-clone, scan, and
+  report before erroring; it now fails fast with a usage error and zero I/O.
+- A line-wrapped `curl … | sh` (split across a backslash-continuation or a
+  trailing-pipe line break) is now caught as `SK-SHELL-002` HIGH. The single-line
+  regex previously missed the wrapped shape — the headline remote-code-execution
+  detector — so a wrapped installer scored MEDIUM instead of a disqualifying
+  HIGH. Shell continuation lines are now joined before matching.
+- LICENSE restored the `Copyright (c) 2026 SuperMarioYL` notice on top of the
+  Apache 2.0 text.
+
 ## [0.2.0] - 2026-07-17
 
 ### Added
@@ -53,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` flag for machine-readable output of the full result.
 - Non-zero exit code `2` on a HIGH verdict, so skvet works as a CI / pre-install gate.
 
-[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.1.0

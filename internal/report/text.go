@@ -33,7 +33,13 @@ func Text(w io.Writer, r Result) {
 	}
 
 	fmt.Fprintln(w, strings.Repeat("─", 64))
-	fmt.Fprintf(w, "OVERALL RISK: %s\n", colorLevel(r.Overall).Sprint(string(r.Overall)))
+	if r.Overall == score.LevelNone {
+		// 0 bundles discovered: do NOT print a false-clean "OVERALL RISK: LOW".
+		// Say so honestly instead (the aggregate counterpart to the m4 fix).
+		fmt.Fprintln(w, color.New(color.Faint).Sprint("OVERALL RISK: n/a — no skill bundle discovered, nothing to assess."))
+	} else {
+		fmt.Fprintf(w, "OVERALL RISK: %s\n", colorLevel(r.Overall).Sprint(string(r.Overall)))
+	}
 	// The load-bearing, stars-orthogonal reminder.
 	fmt.Fprintln(w, color.New(color.Faint).Sprint("note: stars ≠ safe — a 41k-star repo can still curl|sh on install."))
 }

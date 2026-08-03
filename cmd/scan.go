@@ -45,6 +45,14 @@ shallow-cloned (git clone --depth 1) to a temp dir, scanned, then deleted.`,
 }
 
 func runScan(cmd *cobra.Command, target string, jsonOut bool, failOn string) error {
+	// Validate --fail-on BEFORE any I/O so a typo (e.g. --fail-on hig) fails fast
+	// with a usage error and zero cloning — v0.2 validated it only after the scan
+	// + report, which wasted a full remote shallow-clone on a bad flag value.
+	threshold, ok := score.ParseLevel(failOn)
+	if !ok {
+		return fmt.Errorf("--fail-on: invalid level %q (want none|low|medium|high)", failOn)
+	}
+
 	tgt, err := fetch.Resolve(cmd.Context(), target)
 	if err != nil {
 		return err
@@ -77,11 +85,8 @@ func runScan(cmd *cobra.Command, target string, jsonOut bool, failOn string) err
 
 	// Non-zero exit on a HIGH verdict so skvet is usable as a CI/pre-install
 	// gate, while still printing the full report first. v0.2 generalizes the
-	// hard-coded HIGH threshold to a configurable --fail-on level.
-	threshold, ok := score.ParseLevel(failOn)
-	if !ok {
-		return fmt.Errorf("--fail-on: invalid level %q (want none|low|medium|high)", failOn)
-	}
+	// hard-coded HIGH threshold to a configurable --fail-on level; the level is
+	// parsed + validated at the top of runScan (before any clone).
 	if threshold != score.LevelNone && result.Overall.AtLeast(threshold) {
 		// Signal risk without cobra re-printing usage. Call Cleanup explicitly:
 		// os.Exit skips the deferred Cleanup above, which would leak the temp

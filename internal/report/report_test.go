@@ -68,3 +68,18 @@ func TestText_BenignShowsGreenLine(t *testing.T) {
 		t.Errorf("benign bundle should show the pure-prompt line:\n%s", buf.String())
 	}
 }
+
+// TestText_EmptyScanNoFalseLowAggregate: a 0-bundle scan must NOT print a
+// false-clean "OVERALL RISK: LOW"; it prints an honest "nothing to assess"
+// line instead (the m4 fix's aggregate counterpart, m7).
+func TestText_EmptyScanNoFalseLowAggregate(t *testing.T) {
+	var buf bytes.Buffer
+	Text(&buf, Result{Source: "./empty", Bundles: 0, Overall: score.Overall(nil), Verdicts: nil})
+	out := buf.String()
+	if strings.Contains(out, "OVERALL RISK: LOW") {
+		t.Fatalf("0-bundle scan must not print a false-clean OVERALL RISK: LOW:\n%s", out)
+	}
+	if !strings.Contains(out, "nothing to assess") {
+		t.Fatalf("0-bundle scan should print the honest nothing-to-assess line:\n%s", out)
+	}
+}

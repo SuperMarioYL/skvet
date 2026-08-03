@@ -66,3 +66,15 @@ func TestOverall_WorstWins(t *testing.T) {
 		t.Fatalf("expected HIGH overall, got %s", got)
 	}
 }
+
+// TestOverall_EmptyIsNone: a 0-bundle scan must NOT default to a false-clean
+// LOW aggregate (the m4 fix's aggregate counterpart, m7).
+func TestOverall_EmptyIsNone(t *testing.T) {
+	got := Overall(nil)
+	if got != LevelNone {
+		t.Fatalf("0 bundles must yield LevelNone (not LOW), got %s", got)
+	}
+	if got.AtLeast(LevelLow) {
+		t.Fatalf("LevelNone must not meet the LOW threshold (got %s)", got)
+	}
+}

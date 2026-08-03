@@ -132,9 +132,11 @@ func Aggregate(bundlePath string, findings []rules.Finding) Verdict {
 }
 
 // Overall reduces several bundle verdicts to the single worst level, for the
-// repo-wide summary line.
+// repo-wide summary line. An empty verdict slice (0 bundles discovered) yields
+// LevelNone so the report prints an honest "nothing to assess" line instead of a
+// false-clean "OVERALL RISK: LOW" — the aggregate version of the m4 fix.
 func Overall(verdicts []Verdict) Level {
-	worst := LevelLow
+	worst := LevelNone
 	for _, v := range verdicts {
 		if levelRank(v.Level) > levelRank(worst) {
 			worst = v.Level

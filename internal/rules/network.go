@@ -54,17 +54,20 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 			}
 			hasURL := hasRemoteURL
 			hasClient := httpClient.MatchString(line)
+			// A bare documented URL in a NON-executable data file (config.json,
+			// package.json repository URL, data.yaml endpoint, README.txt) is
+			// not an active network call — only flag KindOther when a real
+			// network command or HTTP client is present. Executable surfaces
+			// (KindScript / KindHooksJSON) keep flagging a bare remote URL as a
+			// credible fetch.
+			if f.Kind == KindOther && !hasCmd && !hasClient {
+				continue
+			}
 			if !hasCmd && !hasURL && !hasClient {
 				continue
 			}
 			sev := SeverityMedium
-			reason := "makes an outbound network call from an executable file"
-			if hasCmd && hasURL {
-				// A network command pointed at a concrete remote host is the
-				// strongest exfil/fetch signal short of a pipe-to-shell.
-				sev = SeverityMedium
-				reason = "fetches from a remote host using a network command (curl/wget/etc.)"
-			}
+			reason := networkReason(f.Kind, hasCmd, hasURL)
 			out = append(out, Finding{
 				RuleID:   "SK-NET-001",
 				Severity: sev,
@@ -75,4 +78,27 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 		}
 	}
 	return out
+}
+
+// networkReason picks a kind-accurate reason string. The old generic "from an
+// executable file" reason lied about non-script surfaces — a .json/.yaml/.txt
+// data file is not executable.
+func networkReason(kind FileKind, hasCmd, hasURL bool) string {
+	switch kind {
+	case KindScript:
+		if hasCmd && hasURL {
+			return "fetches from a remote host using a network command (curl/wget/etc.)"
+		}
+		return "makes an outbound network call from an executable script"
+	case KindHooksJSON:
+		if hasCmd && hasURL {
+			return "hook command fetches from a remote host using a network command (curl/wget/etc.)"
+		}
+		return "hook command makes an outbound network call"
+	default: // KindOther — only reached when a real cmd/client is present
+		if hasCmd && hasURL {
+			return "runs a network command pointed at a remote host from a data/config file"
+		}
+		return "runs a network command / HTTP client from a data/config file"
+	}
 }
