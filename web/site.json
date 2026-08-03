@@ -64,6 +64,6 @@
     "button": { "zh": "看 GitHub 仓库", "en": "View on GitHub" }
   },
   "footer": {
-    "tag": { "zh": "MIT 开源 · 与 star 数无关的装前风险分", "en": "MIT open-source · a stars-orthogonal pre-install risk score" }
+    "tag": { "zh": "Apache-2.0 开源 · 与 star 数无关的装前风险分", "en": "Apache-2.0 open-source · a stars-orthogonal pre-install risk score" }
   }
 }
