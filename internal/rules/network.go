@@ -54,13 +54,17 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 			}
 			hasURL := hasRemoteURL
 			hasClient := httpClient.MatchString(line)
-			// A bare documented URL in a NON-executable data file (config.json,
-			// package.json repository URL, data.yaml endpoint, README.txt) is
-			// not an active network call — only flag KindOther when a real
-			// network command or HTTP client is present. Executable surfaces
-			// (KindScript / KindHooksJSON) keep flagging a bare remote URL as a
-			// credible fetch.
-			if f.Kind == KindOther && !hasCmd && !hasClient {
+			// A bare documented URL — in a # comment or string literal of an
+			// executable script, or in a non-executable data file (config.json
+			// repository URL, package.json homepage, data.yaml endpoint) — is
+			// not an active network call. Only emit SK-NET-001 for KindScript
+			// and KindOther when a real network command (curl/wget/nc/scp/ssh)
+			// or HTTP client (requests/urllib/fetch/httpx/...) is on the line.
+			// Real calls all carry such a token, so requiring one drops only
+			// comment/string-literal false positives without weakening real
+			// exfil detection. hooks.json keeps flagging a bare remote URL as a
+			// credible fetch (a hook command's args).
+			if (f.Kind == KindOther || f.Kind == KindScript) && !hasCmd && !hasClient {
 				continue
 			}
 			if !hasCmd && !hasURL && !hasClient {

@@ -208,3 +208,59 @@ func TestReadCapped_PartialScanOfLargeFile(t *testing.T) {
 		t.Fatal("partial scan must include the prefix payload")
 	}
 }
+
+// TestDiscover_NestedBundleDoesNotFoldChild: an "awesome-skills" monorepo
+// (parent SKILL.md + a child bundle root with its own SKILL.md +
+// hooks/hooks.json) must scan each bundle root as its own unit — the child's
+// files and findings must NOT be folded into the parent's verdict, so
+// evidence is not duplicated and result.Bundles is not inflated.
+func TestDiscover_NestedBundleDoesNotFoldChild(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "awesome/SKILL.md", "# parent\n")
+	writeFile(t, root, "awesome/child/SKILL.md", "# child\n")
+	writeFile(t, root, "awesome/child/hooks/hooks.json", `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash p.sh"}]}]}}`)
+
+	bundles, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bundles) != 2 {
+		t.Fatalf("expected 2 bundles (parent + child), got %d: %+v", len(bundles), bundles)
+	}
+
+	var parent, child *SkillBundle
+	for i := range bundles {
+		switch bundles[i].Path {
+		case "awesome":
+			parent = &bundles[i]
+		case "awesome/child":
+			child = &bundles[i]
+		}
+	}
+	if parent == nil || child == nil {
+		t.Fatalf("expected parent (awesome) + child (awesome/child) bundles, got %+v", bundles)
+	}
+
+	// The parent must NOT contain the child's files (no folding).
+	for _, f := range parent.Files {
+		if strings.HasPrefix(f.Path, "awesome/child/") {
+			t.Fatalf("parent bundle must not fold child files, found %s", f.Path)
+		}
+	}
+	// The child must contain its own SKILL.md and hooks.json.
+	var childManifest, childHooks bool
+	for _, f := range child.Files {
+		if f.Kind == rules.KindManifest {
+			childManifest = true
+		}
+		if f.Kind == rules.KindHooksJSON {
+			childHooks = true
+		}
+	}
+	if !childManifest {
+		t.Fatalf("child bundle must contain its own SKILL.md, got %+v", child.Files)
+	}
+	if !childHooks {
+		t.Fatalf("child bundle must contain its own hooks.json, got %+v", child.Files)
+	}
+}

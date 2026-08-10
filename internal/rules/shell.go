@@ -51,6 +51,18 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		// trailing-pipe line break (`curl ... |<newline>sh`) is still caught —
 		// the single-line regex would otherwise miss the wrapped shape and the
 		// bundle would score MEDIUM instead of a disqualifying HIGH.
+		//
+		// But only on executable surfaces: a `curl … | sh` (or
+		// `eval "$(curl …)"`) documented in a pure-prompt SKILL.md / README
+		// (KindMarkdown / KindManifest) is prose quoting an install command, an
+		// anti-pattern example, or skvet's own warning — not a runtime
+		// shell-exec surface. Skipping these kinds preserves the "pure prompt =
+		// LOW" guarantee and mirrors NetworkRule's executable-surfaces-only guard
+		// (network.go). Scripts (KindScript), hooks.json (KindHooksJSON), and
+		// data/config files (KindOther) stay covered.
+		if f.Kind == KindMarkdown || f.Kind == KindManifest {
+			continue
+		}
 		for _, ll := range logicalLines(lines) {
 			if pipeToShell.MatchString(ll.text) || evalDownload.MatchString(ll.text) {
 				out = append(out, Finding{

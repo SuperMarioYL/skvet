@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-11
+
+### Fixed
+- The shell rule no longer flags a `curl … | sh` (or `eval "$(curl …)"`)
+  documented in a pure-prompt `SKILL.md` or `README` as a disqualifying
+  `SK-SHELL-002` HIGH. `ShellRule` now skips `KindMarkdown` / `KindManifest`
+  before running the pipe-to-shell / eval-download matchers — mirroring
+  `NetworkRule`'s executable-surfaces-only guard — so a benign skill that
+  documents its install command in prose no longer trips `--fail-on high`.
+  Real `curl|sh` in scripts, `hooks.json`, and data/config files still fires.
+- The network rule no longer flags a bare remote URL in an executable
+  script's `#` comment or string literal as an outbound network call.
+  `KindScript` now requires a real network command (`curl`/`wget`/`nc`/
+  `scp`/`ssh`) or HTTP client (`requests`/`urllib`/`fetch`/`httpx`/...) on the
+  line — the `KindScript` counterpart of the v0.3.0 `KindOther` fix — so a
+  benign `install.sh` containing `# See https://example.com/docs` no longer
+  yields a false `SK-NET-001` MEDIUM. Real calls all carry such a token.
+- A nested bundle root (an "awesome-skills" monorepo with a root `SKILL.md`
+  plus `sub/SKILL.md` and `sub/hooks/hooks.json`) is no longer folded into
+  its parent. `readBundle` now `SkipDir`s at a nested bundle root, so each
+  bundle scans only its own surface: duplicated findings and an inflated
+  bundle count disappear, and a pure-prompt parent no longer inherits a
+  nested child's HIGH.
+
 ## [0.3.0] - 2026-08-03
 
 ### Fixed
@@ -79,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` flag for machine-readable output of the full result.
 - Non-zero exit code `2` on a HIGH verdict, so skvet works as a CI / pre-install gate.
 
-[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.1.0

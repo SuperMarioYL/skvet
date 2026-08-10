@@ -195,6 +195,17 @@ func readBundle(scanRoot, bundleRoot string) (SkillBundle, error) {
 			if base == ".git" || base == "node_modules" || base == "vendor" {
 				return filepath.SkipDir
 			}
+			// A nested bundle root (a child dir that itself holds a SKILL.md /
+			// .claude-plugin / hooks/hooks.json) is scanned as its own bundle by
+			// a separate readBundle call from findBundleRoots. Stop here so the
+			// child's files and findings are not folded into the parent's
+			// verdict (duplicated evidence, inflated result.Bundles, and a
+			// pure-prompt parent inheriting a nested child's HIGH). This
+			// implements the ancestor-dedup the seen map's docstring promises.
+			// The starting bundleRoot itself is never skipped.
+			if path != bundleRoot && isBundleRoot(path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		kind, scan := classify(path)
