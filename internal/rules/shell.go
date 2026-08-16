@@ -2,6 +2,7 @@ package rules
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -46,11 +47,23 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		}
 
 		// Inline pipe-to-shell / eval-download anywhere is high severity.
-		// Match against logical (continuation-joined) lines so a `curl ... | sh`
-		// split across a backslash-continuation (`curl ... | \<newline> sh`) or a
-		// trailing-pipe line break (`curl ... |<newline>sh`) is still caught —
-		// the single-line regex would otherwise miss the wrapped shape and the
-		// bundle would score MEDIUM instead of a disqualifying HIGH.
+		//
+		// evalDownload (`eval "$(curl …)"` / `bash <(curl …)`) is matched
+		// against the WHOLE file content, not per logical line: it can span
+		// bare newlines inside a `$(...)` command substitution, where `eval
+		// "$(` lands on one line and `curl` on the next. `eval "$(` ends with
+		// `(` — not a backslash or pipe — so logicalLines (below) does NOT join
+		// the two, and a per-line match would miss the RCE. evalDownload's `\s*`
+		// spans newlines, so the single- and multi-line forms both trip
+		// SK-SHELL-002 HIGH — the remote-code-execution shape skvet exists to
+		// block.
+		//
+		// pipeToShell keeps a per-logical-line match: its `[^\n|]` class
+		// excludes newlines, so a wrapped `curl … | \<newline> sh` or
+		// `curl … |<newline>sh` is joined by logicalLines into one line and
+		// matched there (the single-line regex would otherwise miss the wrapped
+		// shape and the bundle would score MEDIUM instead of a disqualifying
+		// HIGH).
 		//
 		// But only on executable surfaces: a `curl … | sh` (or
 		// `eval "$(curl …)"`) documented in a pure-prompt SKILL.md / README
@@ -63,8 +76,17 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		if f.Kind == KindMarkdown || f.Kind == KindManifest {
 			continue
 		}
+		for _, loc := range evalDownload.FindAllStringIndex(f.Content, -1) {
+			out = append(out, Finding{
+				RuleID:   "SK-SHELL-002",
+				Severity: SeverityHigh,
+				Surface:  SurfaceShell,
+				Reason:   "pipes downloaded content straight into a shell (curl|sh style remote-code execution)",
+				Evidence: Evidence{File: f.Path, Line: lineOf(f.Content, loc[0]), Snippet: matchedLinesSnippet(f.Content, loc[0], loc[1])},
+			})
+		}
 		for _, ll := range logicalLines(lines) {
-			if pipeToShell.MatchString(ll.text) || evalDownload.MatchString(ll.text) {
+			if pipeToShell.MatchString(ll.text) {
 				out = append(out, Finding{
 					RuleID:   "SK-SHELL-002",
 					Severity: SeverityHigh,
@@ -75,7 +97,11 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 			}
 		}
 	}
-	return out
+	// A single line that trips both evalDownload (full-content match) and
+	// pipeToShell (logical-line match) — e.g. `eval "$(curl … | sh)"` — must
+	// yield one SK-SHELL-002 finding, not two. The reason string is identical,
+	// so deduping by (file, line) and keeping either is equivalent.
+	return dedupShell002(out)
 }
 
 // logicalLine is one logical (continuation-joined) line and the 1-based number
@@ -146,4 +172,60 @@ func firstNonBlank(lines []string) string {
 		}
 	}
 	return ""
+}
+
+// lineOf returns the 1-based line number of the byte offset in content.
+func lineOf(content string, offset int) int {
+	if offset < 0 {
+		return 1
+	}
+	if offset > len(content) {
+		offset = len(content)
+	}
+	return strings.Count(content[:offset], "\n") + 1
+}
+
+// matchedLinesSnippet returns the text from the start of the line containing
+// matchStart through the end of the line containing matchEnd, with embedded
+// newlines collapsed to single spaces. A multi-line `eval "$(\n  curl…"`
+// is thus rendered as one readable evidence snippet instead of just the
+// truncated `eval "$(` line.
+func matchedLinesSnippet(content string, matchStart, matchEnd int) string {
+	start := matchStart
+	if start < 0 {
+		start = 0
+	}
+	for start > 0 && content[start-1] != '\n' {
+		start--
+	}
+	end := matchEnd
+	if end > len(content) {
+		end = len(content)
+	}
+	if end < start {
+		end = start
+	}
+	for end < len(content) && content[end] != '\n' {
+		end++
+	}
+	return strings.TrimSpace(strings.ReplaceAll(content[start:end], "\n", " "))
+}
+
+// dedupShell002 drops duplicate SK-SHELL-002 findings that share the same
+// (file, line) — e.g. a line that trips both the evalDownload full-content
+// match and the pipeToShell logical-line match. Other findings pass through.
+func dedupShell002(findings []Finding) []Finding {
+	seen := make(map[string]bool)
+	out := make([]Finding, 0, len(findings))
+	for _, f := range findings {
+		if f.RuleID == "SK-SHELL-002" {
+			key := f.Evidence.File + "\x00" + strconv.Itoa(f.Evidence.Line)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+		}
+		out = append(out, f)
+	}
+	return out
 }

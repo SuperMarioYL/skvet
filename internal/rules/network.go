@@ -21,7 +21,10 @@ var (
 	httpURL = regexp.MustCompile(`(?i)https?://[a-z0-9.\-]+`)
 	// httpClient matches common language HTTP clients embedded in scripts.
 	httpClient = regexp.MustCompile(`(?i)(requests\.(get|post)|urllib\.request|http\.client|fetch\(|axios\.|net/http|httpx\.)`)
-	localHost  = regexp.MustCompile(`(?i)https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)`)
+	// localHost matches a genuine loopback URL. The host is anchored
+	// ([:/]|$) so `localhost.evil.com` is NOT mistaken for localhost (an
+	// unanchored prefix match would otherwise suppress SK-NET-001).
+	localHost = regexp.MustCompile(`(?i)https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)([:/]|$)`)
 )
 
 // Check implements Rule.
@@ -35,7 +38,16 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 		}
 		lines := strings.Split(f.Content, "\n")
 		for i, line := range lines {
-			urls := httpURL.FindAllString(line, -1)
+			// A `#` comment in a shell/python script (e.g.
+			// `# uses curl to download weights`) is prose, not a runtime
+			// network call. Strip it before matching so a command word that
+			// appears only in a comment cannot set hasCmd. JSON/YAML data
+			// files keep `#` verbatim (it is not a shell comment there).
+			scanLine := line
+			if f.Kind == KindScript {
+				scanLine = stripShellComment(line)
+			}
+			urls := httpURL.FindAllString(scanLine, -1)
 			hasRemoteURL := false
 			hasAnyURL := len(urls) > 0
 			for _, u := range urls {
@@ -46,14 +58,14 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 			}
 			// A network command whose only URL is localhost (or which targets
 			// localhost) is not an exfil/fetch channel — skip it.
-			hasCmd := netCmd.MatchString(line) && (hasRemoteURL || !hasAnyURL)
+			hasCmd := netCmd.MatchString(scanLine) && (hasRemoteURL || !hasAnyURL)
 			// But a bare network command with no URL at all on the line is still
 			// only interesting if nothing local contradicts it.
-			if netCmd.MatchString(line) && hasAnyURL && !hasRemoteURL {
+			if netCmd.MatchString(scanLine) && hasAnyURL && !hasRemoteURL {
 				hasCmd = false
 			}
 			hasURL := hasRemoteURL
-			hasClient := httpClient.MatchString(line)
+			hasClient := httpClient.MatchString(scanLine)
 			// A bare documented URL — in a # comment or string literal of an
 			// executable script, or in a non-executable data file (config.json
 			// repository URL, package.json homepage, data.yaml endpoint) — is
@@ -105,4 +117,23 @@ func networkReason(kind FileKind, hasCmd, hasURL bool) string {
 		}
 		return "runs a network command / HTTP client from a data/config file"
 	}
+}
+
+// stripShellComment removes a shell `#` comment from a line: everything from
+// the first `#` that starts a word (at line start or after whitespace) to the
+// end of line. A `#` embedded mid-token (`echo a#b`) is not a shell comment
+// and is preserved. Shebangs (`#!/bin/sh`) and inline notes (`cmd # note`)
+// both strip cleanly. This only ever removes prose, never a real network
+// call, so a command word appearing solely in a comment can no longer set
+// hasCmd and false-positive SK-NET-001.
+func stripShellComment(line string) string {
+	for i := 0; i < len(line); i++ {
+		if line[i] != '#' {
+			continue
+		}
+		if i == 0 || line[i-1] == ' ' || line[i-1] == '\t' {
+			return line[:i]
+		}
+	}
+	return line
 }
