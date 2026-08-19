@@ -3,6 +3,15 @@
   "name": "skvet",
   "github": "https://github.com/SuperMarioYL/skvet",
   "host": "skvet.lei6393.com",
+  "version": "0.6.0",
+  "changelog": [
+    {
+      "version": "0.6.0",
+      "date": "2026-08-19",
+      "en": "Closes three security false-negatives: pipe-to-shell absolute-path evasion (/bin/sh, /usr/bin/bash, /bin/zsh now trip SK-SHELL-002 HIGH), a quote-blind comment stripper that hid a trailing curl exfil behind a quoted #, and missing HTTP methods (requests.put/delete/patch/head/options, and fetch with a space) in the HTTP-client regex.",
+      "zh": "修复三处安全漏报：pipe-to-shell 绝对路径绕过（/bin/sh、/usr/bin/bash、/bin/zsh 现在触发 SK-SHELL-002 HIGH）、引号不敏感的注释剥离器把紧跟在带引号 # 之后的 curl 外联藏起来、以及 HTTP 客户端正则漏匹配 requests.put/delete/patch/head/options 与带空格的 fetch。"
+    }
+  ],
   "lang": { "primary": "zh", "toggle": true },
   "accent": ["#E0492F"],
   "hero": {
