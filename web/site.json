@@ -3,8 +3,14 @@
   "name": "skvet",
   "github": "https://github.com/SuperMarioYL/skvet",
   "host": "skvet.lei6393.com",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "changelog": [
+    {
+      "version": "0.7.0",
+      "date": "2026-09-01",
+      "en": "Closes two more security false-negatives: the pipe-to-shell env wrapper (curl … | env bash and | /usr/bin/env bash — the canonical portable interpreter shape, which the v0.6.0 fix named but never actually matched) now trips SK-SHELL-002 HIGH; and the comment stripper is now backslash-aware inside double quotes so an escaped \\\" no longer closes the string and hides a trailing curl exfil behind a quoted #.",
+      "zh": "再修两处安全漏报：pipe-to-shell 的 env 包装（curl … | env bash 与 | /usr/bin/env bash —— 便携式解释器调用的标准形态，v0.6.0 点名却没真正匹配上）现在触发 SK-SHELL-002 HIGH；注释剥离器在双引号内改为反斜杠感知，转义的 \\\" 不再提前闭合字符串、把紧跟在带引号 # 之后的 curl 外联藏起来。"
+    },
     {
       "version": "0.6.0",
       "date": "2026-08-19",

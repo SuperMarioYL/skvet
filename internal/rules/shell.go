@@ -21,8 +21,12 @@ var (
 	// paths (`/bin/sh`, `/usr/bin/bash`, `/bin/zsh`) so an RCE installer that
 	// pipes into an absolute-path shell cannot slip past SK-SHELL-002 HIGH;
 	// an optional `sudo [-E]` / `exec` prefix is also accepted
-	// (`| sudo -E bash`, `| exec sh`). Bare `sh`/`bash`/`zsh` still match.
-	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(?:(?:sudo(?:\s+-E)?|exec)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
+	// (`| sudo -E bash`, `| exec sh`). The wrapper alternation ALSO accepts
+	// `env` (bare `| env bash` and pathed `| /usr/bin/env bash`) — the
+	// canonical *portable* interpreter invocation (same shape as the most
+	// common shebang `#!/usr/bin/env bash`), so a portable RCE installer
+	// cannot evade the headline detector. Bare `sh`/`bash`/`zsh` still match.
+	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(?:(?:sudo(?:\s+-E)?|exec|env|/(?:usr/)?bin/env)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
 
 	// evalDownload matches `eval "$(curl …)"` / `bash <(curl …)` process
 	// substitution that runs remote code without an explicit pipe.
