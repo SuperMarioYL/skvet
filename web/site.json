@@ -148,6 +148,10 @@
           "alt": {
             "en": "Follow the operation",
             "zh": "处理过程"
+          },
+          "mobile": {
+            "light": "/assets/presentation/process-mobile-light.svg",
+            "dark": "/assets/presentation/process-mobile-dark.svg"
           }
         }
       },
@@ -166,6 +170,10 @@
           "alt": {
             "en": "Discover bundles, explain findings, apply the threshold",
             "zh": "发现 Skill、解释风险、应用阈值"
+          },
+          "mobile": {
+            "light": "/assets/presentation/architecture-mobile-light.svg",
+            "dark": "/assets/presentation/architecture-mobile-dark.svg"
           }
         }
       },
@@ -184,6 +192,10 @@
           "alt": {
             "en": "Connect the pieces",
             "zh": "输入与输出"
+          },
+          "mobile": {
+            "light": "/assets/presentation/integrations-mobile-light.svg",
+            "dark": "/assets/presentation/integrations-mobile-dark.svg"
           }
         }
       }
@@ -211,5 +223,19 @@
         "code": "./bin/skvet scan ./testdata/fixtures/benign-skill\n./bin/skvet scan ./testdata/fixtures/malicious-skill --json --fail-on none\n./bin/skvet scan ./testdata/fixtures/malicious-skill --fail-on medium"
       }
     ]
-  }
+  },
+  "changelog": [
+    {
+      "version": "0.7.0",
+      "date": "2026-09-01",
+      "en": "Closes two more security false-negatives: the pipe-to-shell env wrapper (curl … | env bash and | /usr/bin/env bash — the canonical portable interpreter shape, which the v0.6.0 fix named but never actually matched) now trips SK-SHELL-002 HIGH; and the comment stripper is now backslash-aware inside double quotes so an escaped \\\" no longer closes the string and hides a trailing curl exfil behind a quoted #.",
+      "zh": "再修两处安全漏报：pipe-to-shell 的 env 包装（curl … | env bash 与 | /usr/bin/env bash —— 便携式解释器调用的标准形态，v0.6.0 点名却没真正匹配上）现在触发 SK-SHELL-002 HIGH；注释剥离器在双引号内改为反斜杠感知，转义的 \\\" 不再提前闭合字符串、把紧跟在带引号 # 之后的 curl 外联藏起来。"
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-08-19",
+      "en": "Closes three security false-negatives: pipe-to-shell absolute-path evasion (/bin/sh, /usr/bin/bash, /bin/zsh now trip SK-SHELL-002 HIGH), a quote-blind comment stripper that hid a trailing curl exfil behind a quoted #, and missing HTTP methods (requests.put/delete/patch/head/options, and fetch with a space) in the HTTP-client regex.",
+      "zh": "修复三处安全漏报：pipe-to-shell 绝对路径绕过（/bin/sh、/usr/bin/bash、/bin/zsh 现在触发 SK-SHELL-002 HIGH）、引号不敏感的注释剥离器把紧跟在带引号 # 之后的 curl 外联藏起来、以及 HTTP 客户端正则漏匹配 requests.put/delete/patch/head/options 与带空格的 fetch。"
+    }
+  ]
 }
