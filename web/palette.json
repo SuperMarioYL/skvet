@@ -1,0 +1,38 @@
+{
+  "mode": "auto",
+  "id": "e69256-e7e06a-f6b0ac-969e827fec13",
+  "identity": "https://github.com/supermarioyl/skvet",
+  "primary": "#e69256",
+  "secondary": "#e7e06a",
+  "highlight": "#f6b0ac",
+  "dark": {
+    "bg": "#0a090d",
+    "panel": "#131317",
+    "code": "#141113",
+    "ink": "#fdefee",
+    "muted": "#b2a8a8",
+    "line": "#3a271d",
+    "primary": "#e69256",
+    "secondary": "#e7e06a",
+    "highlight": "#f6b0ac",
+    "accent": "#e69256",
+    "buttonStart": "#a5683e",
+    "buttonEnd": "#7d7939",
+    "buttonText": "#ffffff"
+  },
+  "light": {
+    "bg": "#fefbf9",
+    "panel": "#fefaf7",
+    "code": "#fdf7f3",
+    "ink": "#271e1c",
+    "muted": "#726a6b",
+    "line": "#f7decb",
+    "primary": "#9e653b",
+    "secondary": "#787437",
+    "highlight": "#926866",
+    "accent": "#9e653b",
+    "buttonStart": "#a5683e",
+    "buttonEnd": "#7d7939",
+    "buttonText": "#ffffff"
+  }
+}

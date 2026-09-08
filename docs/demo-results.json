@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "source_revision": "e382e4317d06d14a338106e7e64086d669abdc9e",
+  "scope": "Static scan of bundled benign and malicious skill fixtures. Fixture scripts are never executed.",
+  "steps": [
+    {
+      "label": "Recorded run",
+      "body": "Static scan of bundled benign and malicious skill fixtures. Fixture scripts are never executed.",
+      "command": "python3 examples/presentation_demo.py",
+      "output": "benign-skill: overall=LOW exit=0\n  score=0 rules=\nmalicious-skill: overall=HIGH exit=2\n  score=100 rules=SK-HOOK-001,SK-NET-001,SK-SHELL-001,SK-SHELL-002\nScope: static fixture analysis; no hooks, scripts or network calls executed."
+    }
+  ]
+}

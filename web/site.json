@@ -1,84 +1,215 @@
 {
-  "schema": 1,
+  "schema": 3,
   "name": "skvet",
   "github": "https://github.com/SuperMarioYL/skvet",
   "host": "skvet.lei6393.com",
-  "version": "0.7.0",
-  "changelog": [
-    {
-      "version": "0.7.0",
-      "date": "2026-09-01",
-      "en": "Closes two more security false-negatives: the pipe-to-shell env wrapper (curl … | env bash and | /usr/bin/env bash — the canonical portable interpreter shape, which the v0.6.0 fix named but never actually matched) now trips SK-SHELL-002 HIGH; and the comment stripper is now backslash-aware inside double quotes so an escaped \\\" no longer closes the string and hides a trailing curl exfil behind a quoted #.",
-      "zh": "再修两处安全漏报：pipe-to-shell 的 env 包装（curl … | env bash 与 | /usr/bin/env bash —— 便携式解释器调用的标准形态，v0.6.0 点名却没真正匹配上）现在触发 SK-SHELL-002 HIGH；注释剥离器在双引号内改为反斜杠感知，转义的 \\\" 不再提前闭合字符串、把紧跟在带引号 # 之后的 curl 外联藏起来。"
-    },
-    {
-      "version": "0.6.0",
-      "date": "2026-08-19",
-      "en": "Closes three security false-negatives: pipe-to-shell absolute-path evasion (/bin/sh, /usr/bin/bash, /bin/zsh now trip SK-SHELL-002 HIGH), a quote-blind comment stripper that hid a trailing curl exfil behind a quoted #, and missing HTTP methods (requests.put/delete/patch/head/options, and fetch with a space) in the HTTP-client regex.",
-      "zh": "修复三处安全漏报：pipe-to-shell 绝对路径绕过（/bin/sh、/usr/bin/bash、/bin/zsh 现在触发 SK-SHELL-002 HIGH）、引号不敏感的注释剥离器把紧跟在带引号 # 之后的 curl 外联藏起来、以及 HTTP 客户端正则漏匹配 requests.put/delete/patch/head/options 与带空格的 fetch。"
-    }
-  ],
-  "lang": { "primary": "zh", "toggle": true },
-  "accent": ["#E0492F"],
+  "palette": "auto",
+  "lang": {
+    "primary": "en",
+    "toggle": true
+  },
+  "meta": {
+    "visual_style": "neon-particle",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
-    "eyebrow": { "zh": "装前体检 · 与 star 数无关", "en": "Pre-install vet · Stars-orthogonal" },
     "headline": {
-      "zh": "装一个 skill 之前\n先看清它会对你的机器做什么",
-      "en": "Before you install a skill\nsee what it'll do to your machine"
+      "en": "Inspect a skill before it can run",
+      "zh": "让 Skill 运行前，先检查它的行为"
     },
     "sub": {
-      "zh": "trending 上的 agentic skill 包，在你点安装的那一刻就能跑 shell、挂 hook、往外联网。star 数可以刷，它不告诉你这些。skvet 在装之前把包扫一遍，给一个与 star 无关的 LOW/MED/HIGH 判定——装不装，你自己拿主意。",
-      "en": "A trending agentic skill bundle can run shell, register hooks, and call out the moment you install it. Star count is gameable and tells you none of that. skvet scans the bundle before install and gives a stars-orthogonal LOW/MED/HIGH verdict — you make the call."
+      "en": "skvet scans agent skill directories for executable scripts, lifecycle hooks and outbound network patterns, then reports source evidence and a configurable risk verdict.",
+      "zh": "skvet 扫描 Agent Skill 目录中的可执行脚本、生命周期钩子和外连模式，给出对应源码证据，并按可配置阈值返回风险结果。"
     },
-    "command": "skvet scan github.com/owner/awesome-skills",
-    "cta": { "zh": "查看 GitHub", "en": "View on GitHub" },
-    "ctaGithub": { "zh": "源码", "en": "Source" },
-    "scroll": { "zh": "看看它能替你挡什么", "en": "See what it catches for you" }
+    "href": "#quickstart"
   },
   "advantages": [
     {
-      "title": { "zh": "与 star 数无关的风险分", "en": "A risk score that ignores stars" },
-      "body": {
-        "zh": "star 数可以刷、可以买，41k star 的库照样能在安装那一刻 curl|sh。skvet 的判定全程不读 star 数，只看包里到底会对你的机器做什么，报告底部还提醒一句 stars ≠ safe。",
-        "en": "Stars are gameable and buyable — a 41k-star repo can still curl|sh on install. skvet's verdict never reads star count; it looks only at what the bundle will do to your machine, and the report carries a stars ≠ safe reminder."
+      "title": {
+        "en": "Read exact evidence",
+        "zh": "查看具体证据"
       },
-      "chips": ["› LOW/MED/HIGH 判定", "› 全程不读 star 数", "› stars ≠ safe 提醒"]
+      "body": {
+        "en": "Each finding identifies its rule, severity, surface and source location.",
+        "zh": "每项发现包含规则、严重程度、行为类型和源码位置。"
+      }
     },
     {
-      "title": { "zh": "装前就告诉你它会对机器做什么", "en": "Tells you what it'll do to your machine — before install" },
-      "body": {
-        "zh": "随包附带的 shell 脚本、curl|sh 式远程执行、挂在生命周期事件上自动触发的 hook、对外网的调用——装之前就逐条列出来，每条都带文件、行号、代码片段，你能一条条自己质疑，而不是面对一个黑盒分数。",
-        "en": "Shipped shell scripts, curl|sh remote execution, auto-firing hooks on lifecycle events, outbound calls — listed one by one before you install, each with file, line, and snippet so you can challenge any rule instead of facing a black-box score."
+      "title": {
+        "en": "Scan without executing",
+        "zh": "无需执行被扫描内容"
       },
-      "chips": ["› 会跑的 shell 脚本", "› 自动触发的生命周期 hook", "› 对外联网的调用"]
+      "body": {
+        "en": "Rules examine files in memory; the local scan does not run bundle hooks.",
+        "zh": "规则检查读入内存的文件，本地扫描不会运行包内钩子。"
+      }
     },
     {
-      "title": { "zh": "在 CI 里直接拦下高风险安装", "en": "Block risky installs right in CI" },
-      "body": {
-        "zh": "整体风险达到你设的阈值，skvet 直接以非零退出码退出，塞进 CI 当装前闸门，不用自己解析输出。阈值可调——MEDIUM 及以上就拦，还是只拦 HIGH，你定。",
-        "en": "When overall risk hits your threshold, skvet exits non-zero and drops into CI as a pre-install gate — no output parsing. Tune the threshold yourself: block at MEDIUM, or only at HIGH."
+      "title": {
+        "en": "Set the CI threshold",
+        "zh": "设置 CI 阈值"
       },
-      "chips": ["› 阈值可自己调", "› CI 里直接拦下", "› 不用解析输出"]
+      "body": {
+        "en": "Use --fail-on to choose which risk levels return exit code 2.",
+        "zh": "通过 --fail-on 选择哪些风险等级返回退出码 2。"
+      }
+    }
+  ],
+  "demo": {
+    "title": {
+      "en": "Run it on a complete example",
+      "zh": "运行完整示例"
+    },
+    "note": {
+      "en": "The example scans the repository’s benign and malicious fixtures and reports their actual verdicts and exit codes. Those intentionally suspicious scripts are read only.",
+      "zh": "示例扫描仓库内的正常和恶意行为样本，报告实际风险等级和退出码。包含可疑行为的样本脚本只被读取，不会被执行。"
+    },
+    "source": "https://github.com/SuperMarioYL/skvet/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": "Recorded run",
+        "body": "Static scan of bundled benign and malicious skill fixtures. Fixture scripts are never executed.",
+        "command": "python3 examples/presentation_demo.py",
+        "output": "benign-skill: overall=LOW exit=0\n  score=0 rules=\nmalicious-skill: overall=HIGH exit=2\n  score=100 rules=SK-HOOK-001,SK-NET-001,SK-SHELL-001,SK-SHELL-002\nScope: static fixture analysis; no hooks, scripts or network calls executed.",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "en": "Try it locally",
+      "zh": "本地上手"
+    },
+    "body": {
+      "en": "The example scans the repository’s benign and malicious fixtures and reports their actual verdicts and exit codes. Those intentionally suspicious scripts are read only.",
+      "zh": "示例扫描仓库内的正常和恶意行为样本，报告实际风险等级和退出码。包含可疑行为的样本脚本只被读取，不会被执行。"
+    },
+    "steps": [
+      {
+        "title": {
+          "en": "Install from source",
+          "zh": "从源码安装"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/skvet.git\ncd skvet\ngo build -o bin/skvet ."
+      },
+      {
+        "title": {
+          "en": "Run the included example",
+          "zh": "运行随仓示例"
+        },
+        "code": "python3 examples/presentation_demo.py"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "en": "Static pattern matching can miss behavior and can flag legitimate commands. LOW is not a guarantee that a bundle is safe.",
+      "zh": "静态模式匹配可能漏检，也可能标记合法命令。LOW 不代表安全保证。"
     },
     {
-      "title": { "zh": "一个工具，管所有宿主的 skill 包", "en": "One tool for every host's skill bundles" },
-      "body": {
-        "zh": "Claude Code、Cursor、Codex CLI、Gemini CLI、Antigravity——每家宿主各自的签名注册表盖不住 trending 上冒出来的包。skvet 看的是 skill 包本身长什么样，所以这些宿主全管。本地跑，不上传你的代码，也不用注册账号。",
-        "en": "Claude Code, Cursor, Codex CLI, Gemini CLI, Antigravity — each host's signed registry can't cover what surfaces on trending. skvet looks at the bundle's shape, so it covers all of them. Runs locally, never uploads your code, needs no account."
-      },
-      "chips": ["› 五类宿主都管", "› 本地跑不上传", "› 不用注册账号"]
+      "en": "Remote scanning downloads a repository; it does not install the bundle.",
+      "zh": "远程扫描会下载仓库，但不会安装其中的 Skill。"
+    },
+    {
+      "en": "The recorded result covers shipped fixtures, not arbitrary runtime behavior or a complete security audit.",
+      "zh": "记录结果仅覆盖随仓样本，不代表任意运行时行为或完整安全审计。"
     }
   ],
   "scene": {
-    "kind": "hub-nodes",
-    "nodes": ["Claude Code", "Cursor", "Codex CLI", "Gemini CLI", "Antigravity"]
+    "kind": "neon-graph",
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
   },
-  "cta": {
-    "headline": { "zh": "装前一步，把决定权拿回来", "en": "Take the call back, before you install" },
-    "sub": { "zh": "免费、开源。skvet 只做报告，装不装的判断在你。", "en": "Free, open-source. skvet reports — you decide." },
-    "button": { "zh": "看 GitHub 仓库", "en": "View on GitHub" }
-  },
-  "footer": {
-    "tag": { "zh": "Apache-2.0 开源 · 与 star 数无关的装前风险分", "en": "Apache-2.0 open-source · a stars-orthogonal pre-install risk score" }
+  "story": {
+    "intro": {
+      "title": {
+        "en": "A concrete task",
+        "zh": "从实际任务出发"
+      },
+      "body": {
+        "en": "A skill is more than its Markdown instructions: installers and hooks may run commands too. Before installing a bundle, read a report that points to the specific file, line and rule behind each finding.",
+        "zh": "Skill 不只包含 Markdown 指令，安装脚本和钩子也可能运行命令。安装前可先查看报告，定位每项发现对应的文件、行号和规则。"
+      }
+    },
+    "sections": [
+      {
+        "title": {
+          "en": "Follow the operation",
+          "zh": "处理过程"
+        },
+        "body": {
+          "en": "The fetch layer accepts a directory or shallow-clones a GitHub reference. Discovery identifies SKILL.md and supported plugin/hook layouts. Pure shell, hook and network rules produce findings; scoring sorts them and selects the overall level. Text and JSON renderers expose the same result.",
+          "zh": "fetch 层接受本地目录或浅克隆 GitHub 仓库。发现阶段识别 SKILL.md 及支持的插件、钩子布局。shell、hook、network 规则生成发现项，评分模块排序并确定总体等级，文本和 JSON 输出共享同一结果。"
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "en": "Follow the operation",
+            "zh": "处理过程"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Discover bundles, explain findings, apply the threshold",
+          "zh": "发现 Skill、解释风险、应用阈值"
+        },
+        "body": {
+          "en": "The fetch layer accepts a directory or shallow-clones a GitHub reference. Discovery identifies SKILL.md and supported plugin/hook layouts. Pure shell, hook and network rules produce findings; scoring sorts them and selects the overall level. Text and JSON renderers expose the same result.",
+          "zh": "fetch 层接受本地目录或浅克隆 GitHub 仓库。发现阶段识别 SKILL.md 及支持的插件、钩子布局。shell、hook、network 规则生成发现项，评分模块排序并确定总体等级，文本和 JSON 输出共享同一结果。"
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "en": "Discover bundles, explain findings, apply the threshold",
+            "zh": "发现 Skill、解释风险、应用阈值"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Connect the pieces",
+          "zh": "输入与输出"
+        },
+        "body": {
+          "en": "skvet analyzes the bundle itself. Dependency vulnerability tools, runtime sandboxes and signature verification address other parts of installation risk. Use its findings as review input and use --json when another tool needs the full result.",
+          "zh": "skvet 分析 Skill 包自身。依赖漏洞检测、运行时沙箱和签名校验分别处理安装风险的其他部分。可以将发现项用于人工审查，通过 --json 向其他工具传递完整结果。"
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "en": "Connect the pieces",
+            "zh": "输入与输出"
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "en": "Configuration",
+          "zh": "配置"
+        },
+        "body": {
+          "en": "--fail-on accepts none, low, medium or high (default high). The score is capped at 100; high-severity findings independently produce HIGH. An empty target with no discovered bundles reports NONE. Rules inspect shell, supported hook manifests and network patterns; source-backed findings matter more than treating the score as a probability.",
+          "zh": "--fail-on 可选 none、low、medium、high，默认 high。分数上限为 100，单项 high 严重度发现也会直接产生 HIGH。未发现任何 Skill 的空目标报告 NONE。规则检查 shell、支持的钩子清单和外连模式；应关注源码证据，不应把分数当作概率。"
+        }
+      },
+      {
+        "title": {
+          "en": "Further use",
+          "zh": "进一步使用"
+        },
+        "body": {
+          "en": "scan accepts one target. Local paths work offline; a github.com/owner/repo target requires git and network access. --json preserves detailed evidence, while --fail-on none prints a report without a risk-related failure exit. The last command above intentionally returns 2.",
+          "zh": "scan 接受一个目标。本地路径可离线使用；github.com/owner/repo 目标需要 Git 和网络。--json 保留详细证据，--fail-on none 输出报告而不因风险等级返回失败。上方最后一条命令会按预期返回 2。"
+        },
+        "code": "./bin/skvet scan ./testdata/fixtures/benign-skill\n./bin/skvet scan ./testdata/fixtures/malicious-skill --json --fail-on none\n./bin/skvet scan ./testdata/fixtures/malicious-skill --fail-on medium"
+      }
+    ]
   }
 }

@@ -1,0 +1,78 @@
+{
+  "name": "skvet",
+  "tagline": "Inspect a skill before it can run",
+  "architecture": {
+    "title": "Discover bundles, explain findings, apply the threshold",
+    "nodes": [
+      {
+        "title": "Target",
+        "detail": "local path or GitHub ref"
+      },
+      {
+        "title": "Discovery",
+        "detail": "skill and hook layouts"
+      },
+      {
+        "title": "Rules",
+        "detail": "shell / hooks / network"
+      },
+      {
+        "title": "Score + report",
+        "detail": "findings and exit threshold"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "process": {
+    "title": "From input to a useful result",
+    "steps": [
+      {
+        "title": "Read fixtures",
+        "detail": "benign and malicious bundles"
+      },
+      {
+        "title": "Run rules",
+        "detail": "static source evidence"
+      },
+      {
+        "title": "Apply gate",
+        "detail": "LOW exit 0 / HIGH exit 2"
+      }
+    ],
+    "result": "Bundled fixtures demonstrate both passing and blocking CI outcomes without running their scripts."
+  },
+  "integrations": {
+    "title": "Supported input and output routes",
+    "items": [
+      {
+        "title": "Local directory",
+        "detail": "scan an existing checkout"
+      },
+      {
+        "title": "GitHub reference",
+        "detail": "temporary shallow clone"
+      },
+      {
+        "title": "Text report",
+        "detail": "file and line evidence"
+      },
+      {
+        "title": "JSON report",
+        "detail": "automation and CI gates"
+      }
+    ]
+  }
+}
