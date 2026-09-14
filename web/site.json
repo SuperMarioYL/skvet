@@ -226,6 +226,12 @@
   },
   "changelog": [
     {
+      "version": "0.8.0",
+      "date": "2026-09-14",
+      "en": "Cuts one false-positive and two false-negatives: a # comment that merely mentions a curl … | sh installer no longer trips the disqualifying SK-SHELL-002 HIGH (benign bundles stopped exiting 2 under --fail-on high on reviewer notes alone); the comment stripper now carries quote state across lines, so a # inside a multi-line quoted string no longer hides the exfil command that runs after the string closes; and eval '$(curl …)' (single-quoted command substitution — real code execution under eval) now trips SK-SHELL-002 HIGH like its double-quoted twin.",
+      "zh": "修复一处误报、两处漏报：只在 # 注释里提及 curl … | sh 安装命令不再触发 SK-SHELL-002 HIGH（良性 Skill 包不再因评审注释在 --fail-on high 下退出码 2）；注释剥离器跨行携带引号状态，多行引号字符串内的 # 不再把字符串闭合后真正执行的外联命令藏起来；eval '$(curl …)'（单引号命令替换，在 eval 下同样是真实代码执行）现在与双引号形式一样触发 SK-SHELL-002 HIGH。"
+    },
+    {
       "version": "0.7.0",
       "date": "2026-09-01",
       "en": "Closes two more security false-negatives: the pipe-to-shell env wrapper (curl … | env bash and | /usr/bin/env bash — the canonical portable interpreter shape, which the v0.6.0 fix named but never actually matched) now trips SK-SHELL-002 HIGH; and the comment stripper is now backslash-aware inside double quotes so an escaped \\\" no longer closes the string and hides a trailing curl exfil behind a quoted #.",
