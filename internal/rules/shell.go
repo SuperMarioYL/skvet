@@ -28,9 +28,13 @@ var (
 	// cannot evade the headline detector. Bare `sh`/`bash`/`zsh` still match.
 	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(?:(?:sudo(?:\s+-E)?|exec|env|/(?:usr/)?bin/env)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
 
-	// evalDownload matches `eval "$(curl …)"` / `bash <(curl …)` process
-	// substitution that runs remote code without an explicit pipe.
-	evalDownload = regexp.MustCompile(`(?i)(eval\s*"?\$\(\s*(curl|wget)|(sh|bash|zsh)\s*<\(\s*(curl|wget))`)
+	// evalDownload matches `eval "$(curl …)"` / `eval '$(curl …)'` /
+	// `bash <(curl …)` process substitution that runs remote code without an
+	// explicit pipe. The optional quote before `$(` accepts BOTH quote kinds:
+	// eval re-parses its argument as shell code, so the single-quoted
+	// `eval '$(curl …)'` executes the substitution just like the double-quoted
+	// form and must not slip past the detector.
+	evalDownload = regexp.MustCompile(`(?i)(eval\s*["']?\$\(\s*(curl|wget)|(sh|bash|zsh)\s*<\(\s*(curl|wget))`)
 
 	// scriptShebang matches an interpreter shebang on the first line.
 	scriptShebang = regexp.MustCompile(`^#!\s*\S*(sh|bash|zsh|python[0-9.]*|node|ruby|perl)\b`)
@@ -58,7 +62,8 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		// Inline pipe-to-shell / eval-download anywhere is high severity.
 		//
 		// evalDownload (`eval "$(curl …)"` / `bash <(curl …)`) is matched
-		// against the WHOLE file content, not per logical line: it can span
+		// against the WHOLE (comment-stripped) file content, not per logical
+		// line: it can span
 		// bare newlines inside a `$(...)` command substitution, where `eval
 		// "$(` lands on one line and `curl` on the next. `eval "$(` ends with
 		// `(` — not a backslash or pipe — so logicalLines (below) does NOT join
@@ -85,16 +90,31 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		if f.Kind == KindMarkdown || f.Kind == KindManifest {
 			continue
 		}
-		for _, loc := range evalDownload.FindAllStringIndex(f.Content, -1) {
+		// And a `#` comment inside an executable SCRIPT is the same prose: a
+		// reviewer note like `# the old installer did curl … | sh` documents a
+		// pipe-to-shell, it does not run one. Strip shell comments (quote-state
+		// carried across lines, so a `#` inside a multi-line string stays
+		// visible) before matching, so comment prose cannot trip the
+		// disqualifying HIGH. Stripping also stops a comment line ending in
+		// `|` or `\` from joining the next line — correct, since inside a
+		// comment those characters are literal. hooks.json and data/config
+		// files keep `#` verbatim (not a shell comment there), so a real
+		// pipe-to-shell in them still matches.
+		matchLines := lines
+		if f.Kind == KindScript {
+			matchLines = stripScriptComments(lines)
+		}
+		matchContent := strings.Join(matchLines, "\n")
+		for _, loc := range evalDownload.FindAllStringIndex(matchContent, -1) {
 			out = append(out, Finding{
 				RuleID:   "SK-SHELL-002",
 				Severity: SeverityHigh,
 				Surface:  SurfaceShell,
 				Reason:   "pipes downloaded content straight into a shell (curl|sh style remote-code execution)",
-				Evidence: Evidence{File: f.Path, Line: lineOf(f.Content, loc[0]), Snippet: matchedLinesSnippet(f.Content, loc[0], loc[1])},
+				Evidence: Evidence{File: f.Path, Line: lineOf(matchContent, loc[0]), Snippet: matchedLinesSnippet(matchContent, loc[0], loc[1])},
 			})
 		}
-		for _, ll := range logicalLines(lines) {
+		for _, ll := range logicalLines(matchLines) {
 			if pipeToShell.MatchString(ll.text) {
 				out = append(out, Finding{
 					RuleID:   "SK-SHELL-002",

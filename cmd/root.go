@@ -6,7 +6,7 @@ import (
 )
 
 // version is overridable at build time via -ldflags "-X .../cmd.version=…".
-var version = "0.7.0"
+var version = "0.8.0"
 
 // NewRootCmd builds the root `skvet` command.
 func NewRootCmd() *cobra.Command {

