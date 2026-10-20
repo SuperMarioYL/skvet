@@ -17,7 +17,13 @@ func (ShellRule) ID() string { return "SK-SHELL" }
 var (
 	// pipeToShell matches `curl …| sh`, `wget …| bash`, `… | sudo bash`, etc.
 	// across a single line. This is the highest-signal install-time pattern.
-	// The post-pipe shell target accepts bare names (sh|bash|zsh) AND absolute
+	// The download and the shell token are anchored around the LAST pipe of
+	// the logical line (`[^\n]*` spans intermediate pipes), so a piped chain
+	// — `curl … | grep -v '^#' | bash`, `curl … | sudo tee /tmp/i.sh | sh` —
+	// matches at the pipe that actually feeds the shell; the v0.8.0-and-
+	// earlier `[^\n|]*` class stopped at the FIRST pipe, so any command in
+	// between made the headline detector miss the RCE entirely. The
+	// post-pipe shell target accepts bare names (sh|bash|zsh) AND absolute
 	// paths (`/bin/sh`, `/usr/bin/bash`, `/bin/zsh`) so an RCE installer that
 	// pipes into an absolute-path shell cannot slip past SK-SHELL-002 HIGH;
 	// an optional `sudo [-E]` / `exec` prefix is also accepted
@@ -26,15 +32,20 @@ var (
 	// canonical *portable* interpreter invocation (same shape as the most
 	// common shebang `#!/usr/bin/env bash`), so a portable RCE installer
 	// cannot evade the headline detector. Bare `sh`/`bash`/`zsh` still match.
-	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n|]*\|\s*(?:(?:sudo(?:\s+-E)?|exec|env|/(?:usr/)?bin/env)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
+	pipeToShell = regexp.MustCompile(`(?i)(curl|wget)\b[^\n]*\|\s*(?:(?:sudo(?:\s+-E)?|exec|env|/(?:usr/)?bin/env)\s+)?(?:/(?:usr/)?bin/)?(?:sh|bash|zsh)\b`)
 
 	// evalDownload matches `eval "$(curl …)"` / `eval '$(curl …)'` /
-	// `bash <(curl …)` process substitution that runs remote code without an
-	// explicit pipe. The optional quote before `$(` accepts BOTH quote kinds:
-	// eval re-parses its argument as shell code, so the single-quoted
-	// `eval '$(curl …)'` executes the substitution just like the double-quoted
-	// form and must not slip past the detector.
-	evalDownload = regexp.MustCompile(`(?i)(eval\s*["']?\$\(\s*(curl|wget)|(sh|bash|zsh)\s*<\(\s*(curl|wget))`)
+	// `bash <(curl …)` process substitution / `bash -c "$(curl …)"` and
+	// `sh -c '$(wget …)'` (an interpreter executing a command substitution)
+	// that run remote code without an explicit pipe. The optional quote
+	// before `$(` accepts BOTH quote kinds: eval re-parses its argument as
+	// shell code, so the single-quoted `eval '$(curl …)'` executes the
+	// substitution just like the double-quoted form and must not slip past
+	// the detector. The interpreter head alternation accepts `eval` OR
+	// `(sh|bash|zsh) -c`: `bash -c "$(curl …)"` executes the downloaded code
+	// with neither eval nor a pipe and is one of the most common remote-exec
+	// one-liners in real installers, so it must not slip past either.
+	evalDownload = regexp.MustCompile(`(?i)((?:eval|(?:sh|bash|zsh)\s+-c)\s*["']?\$\(\s*(curl|wget)|(sh|bash|zsh)\s*<\(\s*(curl|wget))`)
 
 	// scriptShebang matches an interpreter shebang on the first line.
 	scriptShebang = regexp.MustCompile(`^#!\s*\S*(sh|bash|zsh|python[0-9.]*|node|ruby|perl)\b`)
@@ -72,8 +83,10 @@ func (r ShellRule) Check(files []SourceFile) []Finding {
 		// SK-SHELL-002 HIGH — the remote-code-execution shape skvet exists to
 		// block.
 		//
-		// pipeToShell keeps a per-logical-line match: its `[^\n|]` class
-		// excludes newlines, so a wrapped `curl … | \<newline> sh` or
+		// pipeToShell keeps a per-logical-line match: its `[^\n]` class
+		// excludes newlines (but spans intermediate pipes, so a chain
+		// `curl … | grep x | sh` anchors at the pipe feeding the shell), so a
+		// wrapped `curl … | \<newline> sh` or
 		// `curl … |<newline>sh` is joined by logicalLines into one line and
 		// matched there (the single-line regex would otherwise miss the wrapped
 		// shape and the bundle would score MEDIUM instead of a disqualifying

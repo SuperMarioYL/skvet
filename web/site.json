@@ -226,6 +226,12 @@
   },
   "changelog": [
     {
+      "version": "0.9.0",
+      "date": "2026-10-21",
+      "en": "Closes two more headline-detector false-negatives: a piped chain (curl … | grep -v '^#' | bash, curl … | sudo tee … | sh) — where an intermediate command sits between the download and the shell — now trips SK-SHELL-002 HIGH because the shell token anchors at the last pipe of the line instead of the first; and the interpreter-executes-substitution one-liner bash -c \"$(curl …)\" / sh -c '$(wget …)' now trips HIGH alongside eval and process substitution. Both used to score MEDIUM with exit 0 under the default --fail-on high gate.",
+      "zh": "再修两处头号检测器漏报：管道链（curl … | grep -v '^#' | bash、curl … | sudo tee … | sh）—— 下载与 shell 之间隔了一条中间命令 —— 现在触发 SK-SHELL-002 HIGH，因为 shell 词元锚定在行内最后一个管道而不是第一个；解释器执行命令替换的常见一行命令 bash -c \"$(curl …)\" / sh -c '$(wget …)' 现在与 eval 及进程替换形式一样触发 HIGH。两者此前都以 MEDIUM 结算并在默认 --fail-on high 门下退出码 0。"
+    },
+    {
       "version": "0.8.0",
       "date": "2026-09-14",
       "en": "Cuts one false-positive and two false-negatives: a # comment that merely mentions a curl … | sh installer no longer trips the disqualifying SK-SHELL-002 HIGH (benign bundles stopped exiting 2 under --fail-on high on reviewer notes alone); the comment stripper now carries quote state across lines, so a # inside a multi-line quoted string no longer hides the exfil command that runs after the string closes; and eval '$(curl …)' (single-quoted command substitution — real code execution under eval) now trips SK-SHELL-002 HIGH like its double-quoted twin.",
