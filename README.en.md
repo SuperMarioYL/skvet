@@ -117,6 +117,8 @@ skvet analyzes the bundle itself. Dependency vulnerability tools, runtime sandbo
 - Static pattern matching can miss behavior and can flag legitimate commands. LOW is not a guarantee that a bundle is safe.
 - Remote scanning downloads a repository; it does not install the bundle.
 - The recorded result covers shipped fixtures, not arbitrary runtime behavior or a complete security audit.
+- Pipe-to-shell detection covers the common interpreter spellings (bare, absolute path, `sudo`/`exec`/`env` prefix) but not wrappers that carry their own flags (`env -i bash`, `sudo -u user bash`); those score MEDIUM.
+- Discovery follows symlinked directories; a target that yields no readable bundle reports `n/a` (nothing to assess) rather than LOW.
 
 Implemented: local/remote targets, source evidence, text/JSON reporting and configurable exit thresholds. Future directions include more filesystem/credential patterns, additional manifest layouts and a dedicated GitHub Action wrapper. No hosted dashboard or automatic quarantine is implemented.
 

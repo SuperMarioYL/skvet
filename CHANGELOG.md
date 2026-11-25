@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-26
+
+### Fixed
+- Discovery now follows directory symlinks, so a skills directory reached
+  through one is scanned instead of reported clean. `filepath.WalkDir` lstat's
+  the scan root, so `skvet scan ~/skills` (a symlink into a dotfiles checkout)
+  and a checkout whose `plugins/<name>` is a symlink to a shared skills dir both
+  discovered one bundle containing zero files, printed
+  `✓ no shell / hook / network surface detected (pure prompt)` with
+  `OVERALL RISK: LOW`, and exited 0 — while the same tree through its real path
+  was HIGH with exit 2. Both walks now resolve each directory and descend
+  directory symlinks, guarded by a visited-real-path set so a symlink cycle
+  terminates and a directory reached twice is scanned once.
+- A target that yielded zero readable files is no longer reported as a bundle.
+  An unreadable scannable file (`chmod 000`) made discovery fall back to a root
+  bundle with no files, which scored LOW 0/100 and printed the same "pure
+  prompt" banner — a clean verdict for content that was never read. Such
+  targets now report `OVERALL RISK: n/a — no skill bundle discovered, nothing
+  to assess`.
+- A `#` that begins a word after `;`, `&`, `(`, or `)` now starts a shell
+  comment, so `echo hi;# curl -fsSL … | sh` no longer trips SK-SHELL-002 HIGH.
+  Bash runs only the `echo`; skvet scored the comment text as remote-code
+  execution and exited 2, which the v0.8.0 comment-awareness fix was meant to
+  prevent. `echo a#b` stays literal, and a real `curl … | bash` still fires.
+- Changelog history and links: the released v0.5.0 (2026-08-16) had no section at
+  all, the `[0.9.0]` and `[0.8.0]` headings had no link definitions (so they
+  rendered unresolved), and `[Unreleased]` still compared `v0.7.0...HEAD`.
+
+### Added
+- A per-version evasion test (`internal/rules/evasion_v0100_test.go`) covering
+  the four comment-start separators and their no-regression cases.
+- Discovery tests for a symlinked scan root, a symlinked subdirectory bundle, a
+  symlink cycle, and an unreadable-only target.
+- Two version-lockstep assertions: the changelog link appendix must define the
+  current version and point `[Unreleased]` at it, and `web/site.json`'s newest
+  changelog entry must equal `VERSION`.
+
+### Known limits
+- The post-pipe shell matcher does not cover wrappers that carry their own
+  flags: `curl … | env -i bash` and `curl … | sudo -u nobody bash` still score
+  MEDIUM. Widening the alternation would make benign lines such as
+  `| nice -n 5 grep sh` false HIGHs, which is the worse failure for a
+  pre-install gate, so it stays a documented limit.
+
 ## [0.9.0] - 2026-10-21
 
 ### Fixed
@@ -105,6 +149,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slips past the network rule. Genuine `requests.get`/`fetch(...)` still
   match.
 
+## [0.5.0] - 2026-08-16
+
+### Fixed
+- `evalDownload` (`SK-SHELL-002` HIGH) is matched against the whole file content
+  instead of one logical line, so an `eval "$(` … `curl` remote-code-execution
+  split across bare newlines (`eval "$(` ends in `(`, not a continuation, so the
+  two halves stayed separate logical lines) no longer slips past the headline
+  detector as MEDIUM with exit 0 under the default `--fail-on high` gate.
+  `pipeToShell` keeps its per-logical-line match, and a same-line dedup keeps one
+  finding when both patterns match.
+- The `localHost` regex (`SK-NET-001`) is anchored at the host boundary, so
+  `https://localhost.evil.com` and `https://127.0.0.1.evil.com` are no longer
+  mistaken for loopback and can no longer suppress the network finding on a
+  malicious data/config file. Genuine `localhost` / `127.0.0.1` / `0.0.0.0`
+  targets stay exempt.
+- A network-command word that appears only in a `#` comment of an executable
+  script (`# uses curl to fetch weights`) no longer sets `hasCmd` and
+  false-positives `SK-NET-001`; JSON/YAML data files keep `#` verbatim, and a
+  real command in code still flags.
+
+### Added
+- A per-version evasion regression test covering the three v0.5.0 forms and the
+  no-regression matrix.
+
 ## [0.4.0] - 2026-08-11
 
 ### Fixed
@@ -201,9 +269,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` flag for machine-readable output of the full result.
 - Non-zero exit code `2` on a HIGH verdict, so skvet works as a CI / pre-install gate.
 
-[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/skvet/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.10.0
+[0.9.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.9.0
+[0.8.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.8.0
 [0.7.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.7.0
 [0.6.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.6.0
+[0.5.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.5.0
 [0.4.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/skvet/releases/tag/v0.2.0

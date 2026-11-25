@@ -103,6 +103,14 @@ func Discover(root string) ([]SkillBundle, error) {
 		if err != nil {
 			return nil, err
 		}
+		// A bundle contributes nothing and is dropped. Only the root-as-bundle
+		// fallback can produce an empty one (a real bundle root always carries
+		// its marker file), and reporting it would print the "✓ pure prompt"
+		// banner for content discovery never managed to read — a false-clean
+		// verdict, the worst answer a pre-install scanner can give.
+		if len(b.Files) == 0 {
+			continue
+		}
 		bundles = append(bundles, b)
 	}
 	sort.Slice(bundles, func(i, j int) bool { return bundles[i].Path < bundles[j].Path })
@@ -110,28 +118,22 @@ func Discover(root string) ([]SkillBundle, error) {
 }
 
 // findBundleRoots returns absolute dirs that are bundle roots. Nested bundles
-// are supported (an "awesome-skills" repo with many skill subdirs), but a dir
-// is not re-counted if an ancestor already claimed it as the same bundle root.
+// are supported (an "awesome-skills" repo with many skill subdirs). The walk
+// enters each real directory once, so an ancestor never re-counts a child it
+// already yielded.
 func findBundleRoots(root string) ([]string, error) {
-	seen := map[string]bool{}
 	var found []string
 	sawScannable := false
 
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			base := d.Name()
-			// Skip VCS / dependency dirs entirely.
-			if base == ".git" || base == "node_modules" || base == "vendor" {
-				return filepath.SkipDir
+	err := walkFollowLinks(root, func(path string, d os.DirEntry, isDir bool) (bool, error) {
+		if isDir {
+			if skipDirName(d.Name()) {
+				return false, nil
 			}
-			if isBundleRoot(path) && !seen[path] {
-				seen[path] = true
+			if isBundleRoot(path) {
 				found = append(found, path)
 			}
-			return nil
+			return true, nil
 		}
 		// Track whether ANY scannable file lives under the tree, so the
 		// root-as-bundle fallback only fires when there is actually something
@@ -140,7 +142,7 @@ func findBundleRoots(root string) ([]string, error) {
 		if _, scan := classify(path); scan {
 			sawScannable = true
 		}
-		return nil
+		return false, nil
 	})
 	if err != nil {
 		return nil, err
@@ -155,6 +157,62 @@ func findBundleRoots(root string) ([]string, error) {
 	}
 	sort.Strings(found)
 	return found, nil
+}
+
+// skipDirName reports whether a directory name is VCS / dependency clutter that
+// the walk must never descend into.
+func skipDirName(name string) bool {
+	return name == ".git" || name == "node_modules" || name == "vendor"
+}
+
+// walkFollowLinks visits every entry under root (root itself excluded) in
+// lexical order and descends *directory symlinks*, which filepath.WalkDir does
+// not: it lstat's each entry, so a symlinked skill dir — a common layout
+// (`ln -s ~/dotfiles/skills skills`, `plugins/foo -> ../skills/foo`) — is
+// yielded as a plain file and its whole bundle goes unread, which used to print
+// as a clean "pure prompt" verdict. Paths handed to visit are lexical joins of
+// the walked names, so reported bundle/evidence paths keep the spelling the
+// user typed; a visited-real-path set makes a symlink cycle terminate.
+//
+// visit returns whether to descend into (ignored for files) and an error that
+// aborts the walk. Entry order matches WalkDir's (sorted by name).
+func walkFollowLinks(root string, visit func(path string, d os.DirEntry, isDir bool) (bool, error)) error {
+	return walkDir(root, visit, map[string]bool{})
+}
+
+func walkDir(dir string, visit func(path string, d os.DirEntry, isDir bool) (bool, error), visited map[string]bool) error {
+	real, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		real = dir
+	}
+	if visited[real] {
+		return nil
+	}
+	visited[real] = true
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		path := filepath.Join(dir, e.Name())
+		isDir := e.IsDir()
+		if !isDir && e.Type()&os.ModeSymlink != 0 {
+			if info, serr := os.Stat(path); serr == nil && info.IsDir() {
+				isDir = true
+			}
+		}
+		descend, err := visit(path, e, isDir)
+		if err != nil {
+			return err
+		}
+		if isDir && descend {
+			if err := walkDir(path, visit, visited); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // isBundleRoot reports whether dir directly holds a bundle marker.
@@ -186,14 +244,10 @@ func readBundle(scanRoot, bundleRoot string) (SkillBundle, error) {
 		Manifest: "",
 	}
 
-	err = filepath.WalkDir(bundleRoot, func(path string, d os.DirEntry, werr error) error {
-		if werr != nil {
-			return werr
-		}
-		if d.IsDir() {
-			base := d.Name()
-			if base == ".git" || base == "node_modules" || base == "vendor" {
-				return filepath.SkipDir
+	err = walkFollowLinks(bundleRoot, func(path string, d os.DirEntry, isDir bool) (bool, error) {
+		if isDir {
+			if skipDirName(d.Name()) {
+				return false, nil
 			}
 			// A nested bundle root (a child dir that itself holds a SKILL.md /
 			// .claude-plugin / hooks/hooks.json) is scanned as its own bundle by
@@ -201,20 +255,20 @@ func readBundle(scanRoot, bundleRoot string) (SkillBundle, error) {
 			// child's files and findings are not folded into the parent's
 			// verdict (duplicated evidence, inflated result.Bundles, and a
 			// pure-prompt parent inheriting a nested child's HIGH). This
-			// implements the ancestor-dedup the seen map's docstring promises.
-			// The starting bundleRoot itself is never skipped.
-			if path != bundleRoot && isBundleRoot(path) {
-				return filepath.SkipDir
+			// implements the ancestor-dedup the walk promises. The starting
+			// bundleRoot itself is never visited, so it is never skipped.
+			if isBundleRoot(path) {
+				return false, nil
 			}
-			return nil
+			return true, nil
 		}
 		kind, scan := classify(path)
 		if !scan {
-			return nil
+			return false, nil
 		}
 		content, ok := readCapped(path)
 		if !ok {
-			return nil
+			return false, nil
 		}
 		frel, rerr := filepath.Rel(scanRoot, path)
 		if rerr != nil {
@@ -235,7 +289,7 @@ func readBundle(scanRoot, bundleRoot string) (SkillBundle, error) {
 			b.Runtime = RuntimeClaudeCode
 		}
 		b.Files = append(b.Files, rules.SourceFile{Path: frel, Kind: kind, Content: content})
-		return nil
+		return false, nil
 	})
 	if err != nil {
 		return b, err

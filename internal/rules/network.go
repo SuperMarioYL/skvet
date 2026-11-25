@@ -151,7 +151,8 @@ func stripScriptComments(lines []string) []string {
 }
 
 // stripShellCommentState removes a shell `#` comment from one line: everything
-// from the first `#` that starts a word (at line start or after whitespace) to
+// from the first `#` that starts a word (line start, after whitespace, or after
+// one of the `;` `&` `(` `)` word separators) to
 // the end of line — but ONLY when that `#` is outside any quoted string. It
 // tracks single (`'`) and double (`"`) quote state while scanning and both
 // takes and returns that state, so callers can carry it across the lines of a
@@ -193,10 +194,28 @@ func stripShellCommentState(line string, inSingle, inDouble bool) (string, bool,
 				inDouble = !inDouble
 			}
 		case '#':
-			if !inSingle && !inDouble && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t') {
+			if !inSingle && !inDouble && startsShellComment(line, i) {
 				return line[:i], inSingle, inDouble
 			}
 		}
 	}
 	return line, inSingle, inDouble
+}
+
+// startsShellComment reports whether the '#' at index i opens a shell comment,
+// i.e. begins a word: it is the first byte of the line, or the byte before it
+// is whitespace or a separator that ends a shell word. Before v0.10.0 only
+// whitespace counted, so the legal `echo hi;# curl … | sh` (bash runs the echo
+// alone) kept its comment text and tripped SK-SHELL-002 HIGH on prose, which
+// the v0.8.0 comment-awareness fix was supposed to prevent. `echo a#b` still
+// stays literal: `a` is not a separator.
+func startsShellComment(line string, i int) bool {
+	if i == 0 {
+		return true
+	}
+	switch line[i-1] {
+	case ' ', '\t', ';', '&', '(', ')':
+		return true
+	}
+	return false
 }

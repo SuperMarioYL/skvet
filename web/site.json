@@ -114,6 +114,10 @@
     {
       "en": "The recorded result covers shipped fixtures, not arbitrary runtime behavior or a complete security audit.",
       "zh": "记录结果仅覆盖随仓样本，不代表任意运行时行为或完整安全审计。"
+    },
+    {
+      "en": "The pipe-to-shell detector covers the common interpreter spellings (bare, absolute path, sudo/exec/env prefix) but not wrappers that carry their own flags, such as env -i bash or sudo -u user bash; those score MEDIUM.",
+      "zh": "管道执行检测覆盖常见解释器写法（裸名、绝对路径、sudo/exec/env 前缀），但不覆盖带自身参数的包装形式，例如 env -i bash 或 sudo -u user bash，这些按 MEDIUM 结算。"
     }
   ],
   "scene": {
@@ -207,8 +211,8 @@
           "zh": "配置"
         },
         "body": {
-          "en": "--fail-on accepts none, low, medium or high (default high). The score is capped at 100; high-severity findings independently produce HIGH. An empty target with no discovered bundles reports NONE. Rules inspect shell, supported hook manifests and network patterns; source-backed findings matter more than treating the score as a probability.",
-          "zh": "--fail-on 可选 none、low、medium、high，默认 high。分数上限为 100，单项 high 严重度发现也会直接产生 HIGH。未发现任何 Skill 的空目标报告 NONE。规则检查 shell、支持的钩子清单和外连模式；应关注源码证据，不应把分数当作概率。"
+          "en": "--fail-on accepts none, low, medium or high (default high). The score is capped at 100; high-severity findings independently produce HIGH. Discovery follows symlinked skill directories; a target that yields no readable bundle reports NONE instead of LOW. Rules inspect shell, supported hook manifests and network patterns; source-backed findings matter more than treating the score as a probability.",
+          "zh": "--fail-on 可选 none、low、medium、high，默认 high。分数上限为 100，单项 high 严重度发现也会直接产生 HIGH。发现阶段会跟随符号链接的 Skill 目录；未读到任何可扫描文件的目标报告 NONE 而不是 LOW。规则检查 shell、支持的钩子清单和外连模式；应关注源码证据，不应把分数当作概率。"
         }
       },
       {
@@ -225,6 +229,12 @@
     ]
   },
   "changelog": [
+    {
+      "version": "0.10.0",
+      "date": "2026-11-26",
+      "en": "Cuts two false-clean verdicts and one false positive. Discovery now follows directory symlinks, so a skills directory reached through one (ln -s ~/dotfiles/skills skills, plugins/x -> ../skills/x) is actually scanned instead of being reported as one empty bundle with the \"pure prompt\" banner and exit 0 while the same tree through its real path was HIGH with exit 2; a target that yielded zero readable files is no longer printed as a clean bundle; and a # that begins a word after ; & ( or ) now starts a comment, so echo hi;# curl … | sh no longer trips SK-SHELL-002 HIGH on comment prose. The changelog also regains the missing v0.5.0 section and every release link.",
+      "zh": "修复两处假干净判定与一处误报。发现阶段现在跟随目录符号链接：通过链接访问的 Skill 目录（ln -s ~/dotfiles/skills skills、plugins/x -> ../skills/x）会被真正扫描，而不再报成一个空包、打印 \"pure prompt\" 并以退出码 0 通过 —— 同一棵树用真实路径扫描却是 HIGH、退出码 2。未读到任何文件的目标不再被当作干净包输出。以 ; & ( ) 开头的 # 现在按注释处理，echo hi;# curl … | sh 不再把注释当作 SK-SHELL-002 HIGH。变更日志同时补回了缺失的 v0.5.0 段落与全部版本链接。"
+    },
     {
       "version": "0.9.0",
       "date": "2026-10-21",
